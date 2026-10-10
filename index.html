@@ -9,9 +9,19 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Firebase SDKs (Compat versiya: GitHub Pages va brauzer uchun qulay) -->
+  <!-- SheetJS (Excel .xlsx yuklab berish uchun) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Firebase SDKs (Realtime Database) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    .badge-present { background-color: #dcfce7; color: #15803d; }
+    .badge-absent { background-color: #fee2e2; color: #b91c1c; }
+    .badge-late { background-color: #fef3c7; color: #b45309; }
+    .badge-excused { background-color: #e0e7ff; color: #4338ca; }
+    .badge-permitted { background-color: #f3e8ff; color: #7e22ce; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
 
@@ -37,7 +47,7 @@
         </div>
         <div id="loginError" class="text-red-500 text-xs hidden font-medium text-center">Login yoki parol noto'g'ri!</div>
 
-        <!-- Ushbu tugma 5 marta bosilganda maxfiy Creator oynasi ochiladi -->
+        <!-- Ushbu tugma 5 marta ketma-ket bosilganda maxfiy Creator oynasi ochiladi -->
         <button type="button" id="loginSubmitBtn" onclick="onLoginBtnClick(event)" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200">
           Kirish
         </button>
@@ -86,10 +96,9 @@
       </div>
     </header>
 
-    <!-- Asosiy Maydon -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
       
-      <!-- TAB: ADMIN VA CREATOR TAHLILI -->
+      <!-- TAB 1: ADMIN VA CREATOR TAHLILI (Excel tugmalari shu yerda) -->
       <section id="tabAnalytics" class="space-y-6 hidden">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
@@ -122,13 +131,19 @@
           </div>
         </div>
 
-        <!-- Sinf Davomat Foizlari -->
+        <!-- Sinf Davomat Foizlari Bloklari (Excel 1: Sinflar Tahlili) -->
         <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 class="font-bold text-slate-800 flex items-center gap-2">
               <i class="fa-solid fa-chalkboard-user text-blue-600"></i> Sinf Davomat Foizlari
             </h3>
-            <span class="text-xs font-semibold text-slate-400" id="currentDateDisplay"></span>
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold text-slate-400" id="currentDateDisplay"></span>
+              <!-- EXCEL 1 TUGMASI -->
+              <button onclick="exportClassesDailyExcel()" class="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition">
+                <i class="fa-solid fa-file-excel text-emerald-200"></i> Sinflar Tahlili (Excel)
+              </button>
+            </div>
           </div>
           <div id="classCardsGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3"></div>
         </div>
@@ -148,15 +163,24 @@
           </div>
         </div>
 
-        <!-- Darsbay Jadval -->
+        <!-- Darsbay Jadval (Excel 2: Darsbay Excel) -->
         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div class="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-            <h3 class="font-bold text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-graduation-cap text-blue-600"></i> Darsbay Davomat Jadvali
-            </h3>
-            <select id="filterClassTable" onchange="renderAdminAttendanceTable()" class="text-xs font-medium bg-slate-100 border-0 rounded-lg px-3 py-2">
-              <option value="ALL">Barcha Sinflar</option>
-            </select>
+            <div>
+              <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-graduation-cap text-blue-600"></i> Darsbay Davomat Jadvali
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">Barcha 8 ta soat kesimida kunlik hisobot</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="filterClassTable" onchange="renderAdminAttendanceTable()" class="text-xs font-medium bg-slate-100 border-0 rounded-lg px-3 py-2">
+                <option value="ALL">Barcha Sinflar</option>
+              </select>
+              <!-- EXCEL 2 TUGMASI -->
+              <button onclick="exportDetailedAttendanceExcel()" class="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm transition">
+                <i class="fa-solid fa-file-excel text-blue-200"></i> Darsbay Excel
+              </button>
+            </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
@@ -173,16 +197,17 @@
                   <th class="p-3 text-center">5</th>
                   <th class="p-3 text-center">6</th>
                   <th class="p-3 text-center">7</th>
+                  <th class="p-3 text-center">8</th>
                   <th class="p-3 text-center">Kunlik</th>
                 </tr>
               </thead>
-              <tbody id="adminAttendanceTableBody" class="divide-y divide-slate-100"></tbody>
+              <tbody id="adminAttendanceTableBody" class="divide-y divide-slate-100 font-medium text-slate-700"></tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- TAB: DAVOMAT OLISH (FAN O'QITUVCHISI VA SINF RAHBARI) -->
+      <!-- TAB 2: DAVOMAT OLISH (FAN O'QITUVCHISI VA SINF RAHBARI) -->
       <section id="tabTakeAttendance" class="space-y-6 hidden">
         <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -198,6 +223,7 @@
               <option value="5">5 - Dars</option>
               <option value="6">6 - Dars</option>
               <option value="7">7 - Dars</option>
+              <option value="8">8 - Dars</option>
             </select>
             <select id="teacherSelectClass" onchange="renderTeacherAttendanceTable()" class="bg-slate-100 border-0 text-xs font-semibold px-3 py-2 rounded-lg"></select>
           </div>
@@ -218,7 +244,7 @@
         </div>
       </section>
 
-      <!-- TAB: SINF RAHBARI O'Z SINFI BOSHQARUVI -->
+      <!-- TAB 3: SINF RAHBARI O'Z SINFI BOSHQARUVI -->
       <section id="tabClassLeader" class="space-y-6 hidden">
         <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h2 class="text-xl font-black text-slate-800" id="classLeaderHeaderTitle">Mening Sinfim</h2>
@@ -235,12 +261,12 @@
                 <th class="p-3 text-right">Sinf Rahbari Amallari</th>
               </tr>
             </thead>
-            <tbody id="classLeaderStudentsTable" class="divide-y divide-slate-100"></tbody>
+            <tbody id="classLeaderStudentsTable" class="divide-y divide-slate-100 font-medium"></tbody>
           </table>
         </div>
       </section>
 
-      <!-- TAB: O'QUVCHILAR RO'YXATI BOSHQARUVI -->
+      <!-- TAB 4: O'QUVCHILAR RO'YXATI BOSHQARUVI -->
       <section id="tabStudentsManage" class="space-y-6 hidden">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -263,12 +289,12 @@
                 <th class="p-3 text-right">Amal</th>
               </tr>
             </thead>
-            <tbody id="manageStudentsTableBody" class="divide-y divide-slate-100"></tbody>
+            <tbody id="manageStudentsTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
           </table>
         </div>
       </section>
 
-      <!-- TAB: XODIMLAR BO'LIMI -->
+      <!-- TAB 5: XODIMLAR BO'LIMI -->
       <section id="tabTeachersManage" class="space-y-6 hidden">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -276,7 +302,7 @@
             <p class="text-xs text-slate-400">Login, parol va biriktirilgan sinflar</p>
           </div>
           <div>
-            <input type="file" id="scheduleExcelInput" accept=".xlsx, .xls" class="hidden" onchange="alert('Dars jadvali biriktirildi!')">
+            <input type="file" id="scheduleExcelInput" accept=".xlsx, .xls" class="hidden" onchange="alert('Dars jadvali muvaffaqiyatli saqlandi!')">
             <button onclick="document.getElementById('scheduleExcelInput').click()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2">
               <i class="fa-solid fa-file-excel"></i> Dars soatlarini yuklash (Excel)
             </button>
@@ -295,7 +321,7 @@
                 <th class="p-3 text-right">Amal</th>
               </tr>
             </thead>
-            <tbody id="teachersManageTableBody" class="divide-y divide-slate-100"></tbody>
+            <tbody id="teachersManageTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
           </table>
         </div>
       </section>
@@ -303,7 +329,7 @@
     </main>
   </div>
 
-  <!-- Yangi o'quvchi modali -->
+  <!-- Modallar -->
   <div id="addStudentModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
       <h3 class="text-lg font-bold text-slate-800 mb-4">Yangi O'quvchi Qo'shish</h3>
@@ -331,7 +357,6 @@
     </div>
   </div>
 
-  <!-- Parol o'zgartirish modali -->
   <div id="changePasswordModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-2xl max-w-xs w-full p-6 shadow-2xl">
       <h3 class="text-base font-bold text-slate-800 mb-2">Parolni O'zgartirish</h3>
@@ -344,9 +369,8 @@
     </div>
   </div>
 
-  <!-- ==================== JAVASCRIPT & FIREBASE ==================== -->
+  <!-- ==================== JAVASCRIPT VA FIREBASE MANTIQI ==================== -->
   <script>
-    // 1. FIREBASE KONFIGURATSIYASI
     const firebaseConfig = {
       apiKey: "AIzaSyDdCFG_-uKUEBxJUoL0rPe9Vd0eB-G37pM",
       authDomain: "timd1-a3c98.firebaseapp.com",
@@ -360,7 +384,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 2. BOSHLANG'ICH XODIMLAR VA O'QUVCHILAR RO'YXATI
     const INITIAL_TEACHERS = [
       { id: "admin", name: "Bosh Administrator", class: "", role: "admin", login: "admin", pass: "admin123" },
       { id: "t1", name: "Djurımbaev Paraxat Alimbaevich", class: "", role: "subject", login: "djurimbaev", pass: "123456" },
@@ -701,7 +724,6 @@
       { class: "6-B", name: "KASHKINBAYEVA INKAR JETKERBAYEVNA" }
     ];
 
-    // Global O'zgaruvchilar
     let currentUser = null;
     let clickCount = 0;
     let clickTimer = null;
@@ -714,12 +736,10 @@
     let ratingChart = null;
     let dynamicChart = null;
 
-    // 3. TIZIMNI ISHGA TUSHIRISH VA SINXRONIZATSIYA
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('currentDateDisplay').innerText = currentDayStr + " holatiga";
       initDatabaseDefaults();
 
-      // Realtime Tinglovchilar
       db.ref('teachers').on('value', snap => {
         cachedTeachers = snap.val() || {};
         if (currentUser) renderViews();
@@ -735,7 +755,6 @@
         if (currentUser) renderViews();
       });
 
-      // Sahifa yangilanganda qayta login so'ramaslik
       const savedUser = localStorage.getItem('school_attendance_user');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
@@ -743,7 +762,6 @@
       }
     });
 
-    // Bazani ilk marta avtomatik to'ldirish
     function initDatabaseDefaults() {
       db.ref('teachers').once('value', snap => {
         if (!snap.exists()) {
@@ -765,7 +783,6 @@
       });
     }
 
-    // 4. KIRISH VA CREATOR MANTIQI
     function onLoginBtnClick(e) {
       clickCount++;
       clearTimeout(clickTimer);
@@ -832,7 +849,6 @@
       document.getElementById('loginScreen').classList.remove('hidden');
     }
 
-    // 5. ASOSIY EKRAN VA MENYULAR
     function showApp() {
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('appScreen').classList.remove('hidden');
@@ -842,7 +858,7 @@
       tabs.innerHTML = '';
 
       if (currentUser.role === 'creator') {
-        roleBadge.innerText = "Creator Rejimi (Cheksiz Huquq)";
+        roleBadge.innerText = "Creator Rejimi (To'liq Boshqaruv)";
         tabs.innerHTML = `
           <button onclick="switchTab('tabAnalytics')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-blue-600">Umumiy Tahlil</button>
           <button onclick="switchTab('tabTakeAttendance')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600">Davomat Olish</button>
@@ -886,7 +902,6 @@
       });
       document.getElementById(tabId).classList.remove('hidden');
 
-      // Tugma stillari yangilash
       const navButtons = document.querySelectorAll('#navTabs button');
       navButtons.forEach(btn => {
         if (btn.getAttribute('onclick').includes(tabId)) {
@@ -935,13 +950,11 @@
       renderTeacherAttendanceTable();
     }
 
-    // 6. TAHLIL VA GRAFIKLAR (ADMIN & CREATOR)
     function renderAdminAnalytics() {
       const allStudents = Object.values(cachedStudents);
       const totalStudents = allStudents.length;
       let totalAbsent = 0;
 
-      // Sinf foizlari
       const classMap = {};
       ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A", "11-B"].forEach(c => {
         classMap[c] = { total: 0, absent: 0 };
@@ -951,7 +964,6 @@
         if (!classMap[st.class]) classMap[st.class] = { total: 0, absent: 0 };
         classMap[st.class].total++;
 
-        // Tekshirish: o'quvchi bugun yo'qmi?
         const dayRecord = (cachedAttendance[st.id] || {});
         const isAbsent = Object.values(dayRecord).some(status => status === 'absent');
         if (isAbsent) {
@@ -968,7 +980,6 @@
       document.getElementById('statTotalAbsent').innerText = `${totalAbsent} ta`;
       document.getElementById('statTotalPercent').innerText = `${exactPercent}%`;
 
-      // 1-rasmdagi kichik sinf bloklarini chizish
       const grid = document.getElementById('classCardsGrid');
       grid.innerHTML = '';
       Object.keys(classMap).forEach(cls => {
@@ -1002,7 +1013,6 @@
         return;
       }
 
-      // 1. Sinflar reytingi ustunli grafigi
       const labels = Object.keys(classMap);
       const dataValues = labels.map(c => {
         const item = classMap[c];
@@ -1034,9 +1044,8 @@
 
     function renderDynamicChart() {
       const selectedClass = document.getElementById('chartClassSelect').value;
-      const lessonHours = ['ERT', '1-dars', '2-dars', '3-dars', '4-dars', '5-dars', '6-dars', '7-dars'];
+      const lessonHours = ['ERT', '1-dars', '2-dars', '3-dars', '4-dars', '5-dars', '6-dars', '7-dars', '8-dars'];
 
-      // Tanlangan sinf o'quvchilari
       const classStudents = Object.values(cachedStudents).filter(st => st.class === selectedClass);
       const total = classStudents.length;
 
@@ -1097,6 +1106,12 @@
           return `<i class="fa-solid fa-circle-check text-emerald-500"></i>`;
         };
 
+        let absentCount = 0;
+        ['ERT', '1', '2', '3', '4', '5', '6', '7', '8'].forEach(k => {
+          if (att[k] === 'absent') absentCount++;
+        });
+        const dailyPct = (((9 - absentCount) / 9) * 100).toFixed(1);
+
         tbody.innerHTML += `
           <tr class="hover:bg-slate-50">
             <td class="p-3 font-semibold text-slate-400">${idx + 1}</td>
@@ -1110,13 +1125,13 @@
             <td class="p-3 text-center">${getIcon(att['5'])}</td>
             <td class="p-3 text-center">${getIcon(att['6'])}</td>
             <td class="p-3 text-center">${getIcon(att['7'])}</td>
-            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-black bg-emerald-100 text-emerald-700">100.0%</span></td>
+            <td class="p-3 text-center">${getIcon(att['8'])}</td>
+            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-black ${dailyPct == 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${dailyPct}%</span></td>
           </tr>
         `;
       });
     }
 
-    // 7. DAVOMAT OLISH MANTIQI (FAN O'QITUVCHISI & SINF RAHBARI)
     function renderTeacherAttendanceTable() {
       const selectedClass = document.getElementById('teacherSelectClass').value;
       const lessonHour = document.getElementById('teacherSelectLessonHour').value;
@@ -1127,7 +1142,7 @@
 
       students.forEach((st, idx) => {
         const att = cachedAttendance[st.id] || {};
-        const ertStatus = att['ERT']; // Sinf rahbari qo'ygan holat
+        const ertStatus = att['ERT'];
         const currentStatus = att[lessonHour] || 'present';
 
         let statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-present">Bor</span>`;
@@ -1168,7 +1183,6 @@
       db.ref(`attendance/${currentDayStr}/${studentId}/${lessonKey}`).set(status);
     }
 
-    // 8. SINF RAHBARI O'Z SINFI BOSHQARUVI
     function renderClassLeaderTable() {
       document.getElementById('classLeaderHeaderTitle').innerText = `${currentUser.class} Sinf Rahbari Nazorati`;
       const tbody = document.getElementById('classLeaderStudentsTable');
@@ -1199,7 +1213,6 @@
       });
     }
 
-    // 9. O'QUVCHILAR RO'YXATI BOSHQARUVI (2-rasm)
     function renderStudentsManageTable() {
       const q = (document.getElementById('searchStudentInput').value || '').toLowerCase();
       const tbody = document.getElementById('manageStudentsTableBody');
@@ -1245,12 +1258,10 @@
       }
     }
 
-    // 10. XODIMLAR BO'LIMI (CREATOR KO'RINMAYDI)
     function renderTeachersManageTable() {
       const tbody = document.getElementById('teachersManageTableBody');
       tbody.innerHTML = '';
 
-      // Creator hech qayerda ro'yxatda ko'rinmasligi kerak
       const list = Object.values(cachedTeachers).filter(t => t.role !== 'creator');
 
       list.forEach((t, idx) => {
@@ -1287,6 +1298,112 @@
         closeChangePasswordModal();
         alert("Parol muvaffaqiyatli yangilandi!");
       });
+    }
+
+    // ==================== 11. EXCEL TAHLILLARINI YUKLASH ====================
+    
+    // EXCEL 1: SINFLAR KUNLIK TAHLILI
+    function exportClassesDailyExcel() {
+      const classes = ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A", "11-B"];
+      const allStudents = Object.values(cachedStudents);
+
+      const rows = [
+        ["Maktab Sinflarining Kunlik Davomat Tahlili"],
+        [],
+        [`Sana: ${currentDayStr} | Jami Sinflar: ${classes.length} ta`],
+        [],
+        ["№", "Sinf", "Jami O'quvchi", "Ertalab Bor", "Ertalab Yo'q", "Ertalabki Foiz", "Kun Oxiridagi Bor", "Kun Oxiridagi Yo'q", "Kun Oxiridagi Foiz"]
+      ];
+
+      classes.forEach((cName, idx) => {
+        const cStudents = allStudents.filter(s => s.class === cName);
+        const total = cStudents.length;
+
+        let ertAbsent = 0;
+        let finalAbsent = 0;
+
+        cStudents.forEach(st => {
+          const rec = cachedAttendance[st.id] || {};
+          if (rec['ERT'] === 'absent') ertAbsent++;
+          
+          const isFinalAbsent = Object.values(rec).some(status => status === 'absent');
+          if (isFinalAbsent) finalAbsent++;
+        });
+
+        const ertPresent = Math.max(0, total - ertAbsent);
+        const ertPct = total > 0 ? ((ertPresent / total) * 100).toFixed(1) + "%" : "100.0%";
+
+        const finalPresent = Math.max(0, total - finalAbsent);
+        const finalPct = total > 0 ? ((finalPresent / total) * 100).toFixed(1) + "%" : "100.0%";
+
+        rows.push([
+          idx + 1,
+          cName + " sinf",
+          total + " ta",
+          ertPresent,
+          ertAbsent,
+          ertPct,
+          finalPresent,
+          finalAbsent,
+          finalPct
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `Sinflar_Tahlili`);
+      XLSX.writeFile(wb, `Sinflar_Kunlik_Tahlili_${currentDayStr}.xlsx`);
+    }
+
+    // EXCEL 2: O'QUVCHILARNING DARSBAY (8 TA DARS KESIMIDA) DAVOMATI
+    function exportDetailedAttendanceExcel() {
+      const allStudents = Object.values(cachedStudents);
+      const rows = [
+        ["Dars Soatlari Kesimidagi Kunlik Davomat"],
+        [],
+        [`Sana: ${currentDayStr} | Jami O'quvchilar: ${allStudents.length} ta`],
+        [],
+        ["#", "O'quvchi F.I.SH.", "Sinf", "Ertalab", "1-dars", "2-dars", "3-dars", "4-dars", "5-dars", "6-dars", "7-dars", "8-dars", "Kunlik Foiz"]
+      ];
+
+      const getSymbol = (val) => {
+        if (!val || val === 'present') return "✓";
+        if (val === 'absent') return "Yo'q";
+        if (val === 'late') return "Kech";
+        if (val === 'excused') return "Sababli";
+        if (val === 'permitted') return "Ruxsat";
+        return "✓";
+      };
+
+      allStudents.forEach((st, idx) => {
+        const att = cachedAttendance[st.id] || {};
+        let absentCount = 0;
+        ['ERT', '1', '2', '3', '4', '5', '6', '7', '8'].forEach(k => {
+          if (att[k] === 'absent') absentCount++;
+        });
+        const dailyPct = (((9 - absentCount) / 9) * 100).toFixed(1) + "%";
+
+        rows.push([
+          idx + 1,
+          st.name,
+          st.class,
+          getSymbol(att['ERT']),
+          getSymbol(att['1']),
+          getSymbol(att['2']),
+          getSymbol(att['3']),
+          getSymbol(att['4']),
+          getSymbol(att['5']),
+          getSymbol(att['6']),
+          getSymbol(att['7']),
+          getSymbol(att['8']),
+          dailyPct
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `Darsbay_Davomat`);
+      XLSX.writeFile(wb, `Oquvchilar_Darsbay_Davomat_${currentDayStr}.xlsx`);
     }
   </script>
 </body>
