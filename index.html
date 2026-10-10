@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maktab Davomat Platformasi</title>
+  <!-- Tailwind CSS & FontAwesome & Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Firebase SDKs (Compat versiya: GitHub Pages va brauzer uchun qulay) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+
+  <!-- ==================== 1. LOGIN EKRANI ==================== -->
+  <div id="loginScreen" class="flex min-h-screen items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 border border-slate-100">
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 text-blue-600 rounded-full mb-3 text-2xl font-bold">
+          <i class="fa-solid fa-school"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-800">Davomat Tizimi</h1>
+        <p class="text-slate-500 text-xs mt-1">Maktab xodimlari portali</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Login</label>
+          <input type="text" id="loginUsername" placeholder="Foydalanuvchi nomi" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Parol</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div id="loginError" class="text-red-500 text-xs hidden font-medium text-center">Login yoki parol noto'g'ri!</div>
+
+        <!-- Ushbu tugma 5 marta bosilganda maxfiy Creator oynasi ochiladi -->
+        <button type="button" id="loginSubmitBtn" onclick="onLoginBtnClick(event)" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition duration-200">
+          Kirish
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Maxfiy Creator Kod Modali -->
+  <div id="creatorModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-6 text-center shadow-2xl">
+      <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+        <i class="fa-solid fa-user-secret"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-800 mb-1">Maxfiy Kirish</h3>
+      <p class="text-xs text-slate-500 mb-4">8 xonali parolni kiriting</p>
+      <input type="password" id="creatorCodeInput" maxlength="8" placeholder="••••••••" class="w-full text-center text-xl tracking-widest px-4 py-2 border rounded-lg mb-4 focus:ring-2 focus:ring-purple-500 focus:outline-none font-mono">
+      <div class="flex gap-2">
+        <button onclick="closeCreatorModal()" class="w-1/2 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">Bekor qilish</button>
+        <button onclick="verifyCreatorCode()" class="w-1/2 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold">Tasdiqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 2. ASOSIY DASTUR DASHBOARD ==================== -->
+  <div id="appScreen" class="hidden min-h-screen flex flex-col">
+    <!-- Yuqori Menyu Paneli -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+            <i class="fa-solid fa-clipboard-user"></i>
+          </div>
+          <div>
+            <span class="font-bold text-slate-800 text-sm sm:text-base">Maktab Davomat Platformasi</span>
+            <div id="userRoleBadge" class="text-[11px] font-semibold text-slate-500"></div>
+          </div>
+        </div>
+
+        <!-- Dinamik Navigatsiya Menyu -->
+        <div class="flex items-center gap-2">
+          <div id="navTabs" class="flex gap-1 bg-slate-100 p-1 rounded-lg"></div>
+          <button onclick="logout()" title="Chiqish" class="p-2 text-slate-500 hover:text-red-600 hover:bg-slate-100 rounded-lg ml-1 transition">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Asosiy Maydon -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      
+      <!-- TAB: ADMIN VA CREATOR TAHLILI -->
+      <section id="tabAnalytics" class="space-y-6 hidden">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase font-bold text-slate-400">Jami O'quvchi</p>
+              <h2 id="statTotalStudents" class="text-2xl font-black text-slate-800 mt-1">0 ta</h2>
+            </div>
+            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-users"></i></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase font-bold text-slate-400">Bugun Bor</p>
+              <h2 id="statTotalPresent" class="text-2xl font-black text-emerald-600 mt-1">0 ta</h2>
+            </div>
+            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-user-check"></i></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase font-bold text-slate-400">Bugun Yo'q</p>
+              <h2 id="statTotalAbsent" class="text-2xl font-black text-rose-600 mt-1">0 ta</h2>
+            </div>
+            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-user-xmark"></i></div>
+          </div>
+          <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase font-bold text-slate-400">Aniq Foiz</p>
+              <h2 id="statTotalPercent" class="text-2xl font-black text-indigo-600 mt-1">100.0%</h2>
+            </div>
+            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl"><i class="fa-solid fa-chart-pie"></i></div>
+          </div>
+        </div>
+
+        <!-- Sinf Davomat Foizlari -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-chalkboard-user text-blue-600"></i> Sinf Davomat Foizlari
+            </h3>
+            <span class="text-xs font-semibold text-slate-400" id="currentDateDisplay"></span>
+          </div>
+          <div id="classCardsGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3"></div>
+        </div>
+
+        <!-- Grafiklar -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <h3 class="font-bold text-slate-800 text-sm mb-4">Sinflar reytingi (Foizlar taqqoslashi)</h3>
+            <div class="h-64"><canvas id="classRatingChart"></canvas></div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-slate-800 text-sm">Dars soatlari dinamikasi</h3>
+              <select id="chartClassSelect" onchange="renderDynamicChart()" class="text-xs bg-slate-100 border-none rounded-md px-2 py-1 font-semibold focus:ring-0"></select>
+            </div>
+            <div class="h-64"><canvas id="lessonDynamicChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Darsbay Jadval -->
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div class="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-graduation-cap text-blue-600"></i> Darsbay Davomat Jadvali
+            </h3>
+            <select id="filterClassTable" onchange="renderAdminAttendanceTable()" class="text-xs font-medium bg-slate-100 border-0 rounded-lg px-3 py-2">
+              <option value="ALL">Barcha Sinflar</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-semibold uppercase border-b">
+                <tr>
+                  <th class="p-3 w-10">№</th>
+                  <th class="p-3">O'quvchi F.I.SH</th>
+                  <th class="p-3">Sinf</th>
+                  <th class="p-3 text-center">ERT</th>
+                  <th class="p-3 text-center">1</th>
+                  <th class="p-3 text-center">2</th>
+                  <th class="p-3 text-center">3</th>
+                  <th class="p-3 text-center">4</th>
+                  <th class="p-3 text-center">5</th>
+                  <th class="p-3 text-center">6</th>
+                  <th class="p-3 text-center">7</th>
+                  <th class="p-3 text-center">Kunlik</th>
+                </tr>
+              </thead>
+              <tbody id="adminAttendanceTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: DAVOMAT OLISH (FAN O'QITUVCHISI VA SINF RAHBARI) -->
+      <section id="tabTakeAttendance" class="space-y-6 hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-black text-slate-800">Dars Davomati Olish</h2>
+            <p class="text-xs text-slate-500 mt-1">Sinf va dars soatini tanlang. Tugma bosilmasa o'quvchi Bor hisoblanadi.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <select id="teacherSelectLessonHour" onchange="renderTeacherAttendanceTable()" class="bg-slate-100 border-0 text-xs font-semibold px-3 py-2 rounded-lg">
+              <option value="1">1 - Dars</option>
+              <option value="2">2 - Dars</option>
+              <option value="3">3 - Dars</option>
+              <option value="4">4 - Dars</option>
+              <option value="5">5 - Dars</option>
+              <option value="6">6 - Dars</option>
+              <option value="7">7 - Dars</option>
+            </select>
+            <select id="teacherSelectClass" onchange="renderTeacherAttendanceTable()" class="bg-slate-100 border-0 text-xs font-semibold px-3 py-2 rounded-lg"></select>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-slate-400 font-semibold uppercase text-xs border-b">
+              <tr>
+                <th class="p-4 w-12">№</th>
+                <th class="p-4">F.I.SH</th>
+                <th class="p-4">Holat</th>
+                <th class="p-4 text-right">Amal (Yo'q / Kechikdi)</th>
+              </tr>
+            </thead>
+            <tbody id="teacherAttendanceTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB: SINF RAHBARI O'Z SINFI BOSHQARUVI -->
+      <section id="tabClassLeader" class="space-y-6 hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <h2 class="text-xl font-black text-slate-800" id="classLeaderHeaderTitle">Mening Sinfim</h2>
+          <p class="text-xs text-slate-500 mt-1">Kunlik sababli yoki sertifikat/olimpiada uchun "Ruxsat etilgan" belgilari</p>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-semibold border-b">
+              <tr>
+                <th class="p-3 w-10">№</th>
+                <th class="p-3">O'quvchi</th>
+                <th class="p-3">Kunlik Holati (Ertalabki)</th>
+                <th class="p-3 text-right">Sinf Rahbari Amallari</th>
+              </tr>
+            </thead>
+            <tbody id="classLeaderStudentsTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB: O'QUVCHILAR RO'YXATI BOSHQARUVI -->
+      <section id="tabStudentsManage" class="space-y-6 hidden">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-black text-slate-800" id="manageTotalStudentsCount">O'quvchilar Boshqaruvi</h2>
+            <p class="text-xs text-slate-400">O'quvchilarni o'chirish va yangi qo'shish</p>
+          </div>
+          <button onclick="openAddStudentModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-2">
+            <i class="fa-solid fa-user-plus"></i> Yangi qo'shish
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <input type="text" id="searchStudentInput" oninput="renderStudentsManageTable()" placeholder="O'quvchi ismini qidiring..." class="w-full px-4 py-2 border rounded-xl text-xs mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-semibold border-b">
+              <tr>
+                <th class="p-3 w-12">№</th>
+                <th class="p-3">F.I.SH</th>
+                <th class="p-3">Sinfi</th>
+                <th class="p-3 text-right">Amal</th>
+              </tr>
+            </thead>
+            <tbody id="manageStudentsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB: XODIMLAR BO'LIMI -->
+      <section id="tabTeachersManage" class="space-y-6 hidden">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-black text-slate-800">Xodimlar Boshqaruvi</h2>
+            <p class="text-xs text-slate-400">Login, parol va biriktirilgan sinflar</p>
+          </div>
+          <div>
+            <input type="file" id="scheduleExcelInput" accept=".xlsx, .xls" class="hidden" onchange="alert('Dars jadvali biriktirildi!')">
+            <button onclick="document.getElementById('scheduleExcelInput').click()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2">
+              <i class="fa-solid fa-file-excel"></i> Dars soatlarini yuklash (Excel)
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 uppercase font-semibold border-b">
+              <tr>
+                <th class="p-3 w-12">№</th>
+                <th class="p-3">F.I.SH</th>
+                <th class="p-3">Biriktirilgan Sinf</th>
+                <th class="p-3">Login</th>
+                <th class="p-3">Parol</th>
+                <th class="p-3 text-right">Amal</th>
+              </tr>
+            </thead>
+            <tbody id="teachersManageTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Yangi o'quvchi modali -->
+  <div id="addStudentModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+      <h3 class="text-lg font-bold text-slate-800 mb-4">Yangi O'quvchi Qo'shish</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">F.I.SH</label>
+          <input type="text" id="newStudentName" class="w-full border rounded-lg px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Sinf</label>
+          <select id="newStudentClass" class="w-full border rounded-lg px-3 py-2 text-xs">
+            <option value="5-A">5-A</option><option value="5-B">5-B</option>
+            <option value="6-A">6-A</option><option value="6-B">6-B</option>
+            <option value="7-A">7-A</option><option value="8-A">8-A</option><option value="8-B">8-B</option>
+            <option value="9-A">9-A</option><option value="9-B">9-B</option><option value="9-V">9-V</option>
+            <option value="10-A">10-A</option><option value="10-B">10-B</option>
+            <option value="11-A">11-A</option><option value="11-B">11-B</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-6">
+        <button onclick="closeAddStudentModal()" class="w-1/2 py-2 bg-slate-100 rounded-lg text-xs font-bold">Bekor qilish</button>
+        <button onclick="saveNewStudent()" class="w-1/2 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">Qo'shish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Parol o'zgartirish modali -->
+  <div id="changePasswordModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-6 shadow-2xl">
+      <h3 class="text-base font-bold text-slate-800 mb-2">Parolni O'zgartirish</h3>
+      <p id="changePasswordTeacherName" class="text-xs text-slate-500 mb-3"></p>
+      <input type="text" id="newTeacherPasswordInput" placeholder="Yangi parol" class="w-full border rounded-lg px-3 py-2 text-xs mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      <div class="flex gap-2">
+        <button onclick="closeChangePasswordModal()" class="w-1/2 py-2 bg-slate-100 rounded-lg text-xs font-bold">Bekor qilish</button>
+        <button onclick="saveNewTeacherPassword()" class="w-1/2 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT & FIREBASE ==================== -->
+  <script>
+    // 1. FIREBASE KONFIGURATSIYASI
+    const firebaseConfig = {
+      apiKey: "AIzaSyDdCFG_-uKUEBxJUoL0rPe9Vd0eB-G37pM",
+      authDomain: "timd1-a3c98.firebaseapp.com",
+      databaseURL: "https://timd1-a3c98-default-rtdb.firebaseio.com",
+      projectId: "timd1-a3c98",
+      storageBucket: "timd1-a3c98.firebasestorage.app",
+      messagingSenderId: "494024757695",
+      appId: "1:494024757695:web:e17a34f7daf1f7e6f3510a"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 2. BOSHLANG'ICH XODIMLAR VA O'QUVCHILAR RO'YXATI
+    const INITIAL_TEACHERS = [
+      { id: "admin", name: "Bosh Administrator", class: "", role: "admin", login: "admin", pass: "admin123" },
+      { id: "t1", name: "Djurımbaev Paraxat Alimbaevich", class: "", role: "subject", login: "djurimbaev", pass: "123456" },
+      { id: "t2", name: "Sabirova Gulistan Otarbaevna", class: "6-B", role: "class_leader", login: "sabirova", pass: "123456" },
+      { id: "t3", name: "Bolegenova Nurjamal Iskenderovna", class: "", role: "subject", login: "bolegenova", pass: "123456" },
+      { id: "t4", name: "Otemuratov Farxod Xojamuratovich", class: "9-A", role: "class_leader", login: "otemuratov", pass: "123456" },
+      { id: "t5", name: "Atajanov Uluǵbek Maulenbergenovich", class: "9-V", role: "class_leader", login: "atajanov", pass: "123456" },
+      { id: "t6", name: "Jienbaeva Qalbazar Aralbay qızı", class: "", role: "subject", login: "jienbaeva", pass: "123456" },
+      { id: "t7", name: "Allamova Moxira Batırbay qızı", class: "10-B", role: "class_leader", login: "allamova", pass: "123456" },
+      { id: "t8", name: "Aymuratova Aypara Polat qızı", class: "7-A", role: "class_leader", login: "aymuratova", pass: "123456" },
+      { id: "t9", name: "Turekeeva Zamira Aymuratovna", class: "10-A", role: "class_leader", login: "turekeeva", pass: "123456" },
+      { id: "t10", name: "Bazarbaeva Gulnaz Joldasbayevna", class: "11-A", role: "class_leader", login: "bazarbaeva_g", pass: "123456" },
+      { id: "t11", name: "Sırımbetova Ulzira Jaksilik qızı", class: "5-A", role: "class_leader", login: "sirimbetova", pass: "123456" },
+      { id: "t12", name: "Kamalova Elmira Yemjarovna", class: "11-B", role: "class_leader", login: "kamalova", pass: "123456" },
+      { id: "t13", name: "Gurbanova Ayperi Murat qızı", class: "", role: "subject", login: "gurbanova", pass: "123456" },
+      { id: "t14", name: "Tatikov Allanur Xudayberdi ulı", class: "8-A", role: "class_leader", login: "tatikov", pass: "123456" },
+      { id: "t15", name: "Bekimbetov Komiljon Yuldashbayevich", class: "", role: "subject", login: "bekimbetov", pass: "123456" },
+      { id: "t16", name: "Eshimbetova Dilbar Atamuratovna", class: "", role: "subject", login: "eshimbetova", pass: "123456" },
+      { id: "t17", name: "Tajimuratova Gulsara Torejanovna", class: "8-B", role: "class_leader", login: "tajimuratova", pass: "123456" },
+      { id: "t18", name: "Allambergenov Otkirbek Yegamberdi ulı", class: "", role: "subject", login: "allambergenov", pass: "123456" },
+      { id: "t19", name: "Adilov Murat Oralbay ulı", class: "6-A", role: "class_leader", login: "adilov", pass: "123456" },
+      { id: "t20", name: "Karimbayev Abdirasuli Axmetovich", class: "", role: "subject", login: "karimbayev", pass: "123456" },
+      { id: "t21", name: "Ustinov Polat Baxramovich", class: "", role: "subject", login: "ustinov", pass: "123456" },
+      { id: "t22", name: "Umarova Xamida Usmanovna", class: "", role: "subject", login: "umarova", pass: "123456" },
+      { id: "t23", name: "Tolıbayev Quwat Mırzabayevich", class: "9-B", role: "class_leader", login: "tolibayev", pass: "123456" },
+      { id: "t24", name: "Bazarbaeva Gumshagul Nazarbaevna", class: "5-B", role: "class_leader", login: "bazarbaeva_gu", pass: "123456" },
+      { id: "t25", name: "Kurbanazarov Mukhammeddin Kamalatdinovich", class: "", role: "subject", login: "kurbanazarov", pass: "123456" },
+      { id: "t26", name: "Bazarbaev Sultanbek Baxtibay uli", class: "", role: "subject", login: "bazarbaev_s", pass: "123456" },
+      { id: "t27", name: "Erjanov Jolmırza Abatbaevich", class: "", role: "subject", login: "erjanov", pass: "123456" },
+      { id: "t28", name: "BUKENOVA ASEMAY MUSTAFAYEVNA", class: "", role: "subject", login: "bukenova", pass: "123456" },
+      { id: "t29", name: "YULDASHOVA IRODA JUMANIYAZ QIZI", class: "", role: "subject", login: "yuldashova_i", pass: "123456" },
+      { id: "t30", name: "NIYAZOV TEMUR RUSTAMOVICH", class: "", role: "subject", login: "niyazov", pass: "123456" },
+      { id: "t31", name: "KURBASHOV BAXTIYAR MUFTULLA ULI", class: "", role: "subject", login: "kurbashov", pass: "123456" },
+      { id: "t32", name: "SHAMURATOVA BARNO BAXRAM QIZI", class: "", role: "subject", login: "shamuratova", pass: "123456" },
+      { id: "t33", name: "JUMABAYEVA MAFTUNA IKRAM QIZI", class: "", role: "subject", login: "jumabayeva_m", pass: "123456" }
+    ];
+
+    const INITIAL_RAW_STUDENTS = [
+      { class: "9-B", name: "ГУЛМУРАТОВ ДИЁРБЕК РУСТАМОВИЧ" },
+      { class: "9-B", name: "ГАЙПБАЕВА МЕХРИБАН ТУРСУНБАЙ КЫЗЫ" },
+      { class: "9-B", name: "МАТКАРИМОВА ЗЕБО МАКСУД КЫЗЫ" },
+      { class: "9-B", name: "РЕЙИМБАЕВ САИДБЕК ЮНУСОВИЧ" },
+      { class: "9-B", name: "МУХТАРОВА МАДИНА АНВАРОВНА" },
+      { class: "9-B", name: "МАРАТБАЕВ ДИДОР СЕЙТНУРОВИЧ" },
+      { class: "9-B", name: "АРТЫКБАЕВ АЗИЗБЕК РАХАТОВИЧ" },
+      { class: "9-B", name: "РЕЖЕПБАЕВ КАКАМЫРАТ ЫХЛАСОВИЧ" },
+      { class: "9-B", name: "КАДИРБЕРГЕНОВ ИЛДАР ЗАМИРОВИЧ" },
+      { class: "9-B", name: "ОВЕЗЖАНОВ СУЛТАНБЕК АЛЛАМУРАТОВИЧ" },
+      { class: "9-B", name: "МАСАТИНОВА ЖАНЕРКЕ СЕРИКБАЕВНА" },
+      { class: "9-B", name: "РЕЖЕПОВА ДИЛШАДА АЛЛАБЕРДИЕВНА" },
+      { class: "9-B", name: "ОРЫНБАЕВА ХИЛОЛА ГУЛОМЖАНОВНА" },
+      { class: "9-B", name: "DANIYAROV DAVRANBEK SERIKBAYEVICH" },
+      { class: "9-B", name: "АЗАТОВ ОРАЗАЛИ САЛАМАТОВИЧ" },
+      { class: "9-B", name: "АЗАТОВА УЛМЕКЕН ШУХРАТОВНА" },
+      { class: "9-B", name: "ХАЛИЛЛАЕВ ДАУЛЕТМУРАТ ДЖАЛГАСБАЕВИЧ" },
+      { class: "9-B", name: "НЫШАНБАЕВА АСЕЛЯ КОСЖАНБАЕВНА" },
+      { class: "9-B", name: "ОРАЗИМБЕТОВА ЖАСМИНА ГУЛОМОВНА" },
+      { class: "9-B", name: "ДЖУМАБАЕВ ШОХИМАРДОН ГАФУРЖАН УҒЛИ" },
+      { class: "9-B", name: "СУЛТАНМУРАДОВ ЭЛБЕК БАТЫРОВИЧ" },
+      { class: "9-B", name: "ДЖУМАБАЕВА НАФИСА АЛИМЖОН КЫЗЫ" },
+      { class: "9-B", name: "АХМЕТОВ БАУЫРЖАН ЖАНИБЕК УЛЫ" },
+      { class: "9-B", name: "МАТКАРИМОВА РОЗА МАВЛАНОВНА" },
+      { class: "10-B", name: "AMANGELDIEV SHOXRAT YALKANOVICH" },
+      { class: "10-B", name: "YARLIKAPOV ARSLANBEK MAXSUD UGLI" },
+      { class: "10-B", name: "TAJIBAYEV XUSEYN BEKZODOVICH" },
+      { class: "10-B", name: "TOLÍBAEVA BIBIMARIYAM JOLDASBAEVNA" },
+      { class: "10-B", name: "JANGABAYEVA SEVARA ATABEKOVNA" },
+      { class: "10-B", name: "KAMALOVA DILRABO KOJABAY QIZI" },
+      { class: "10-B", name: "XUDAYBERGENOVA DILDORA RAFAELOVNA" },
+      { class: "10-B", name: "KARIMOV DILSHODBEK ALISHEROVICH" },
+      { class: "10-B", name: "SHARIBAEVA GULJAYNA QUANDÍQ QÍZÍ" },
+      { class: "10-B", name: "BEKIMBETOVA SEVINCH SHARAFOVNA" },
+      { class: "10-B", name: "TAGANBERDIYEVA GULRUX GELDIBAYEVNA" },
+      { class: "10-B", name: "SAATBAYEV JAVOXIR FARXADOVICH" },
+      { class: "10-B", name: "MUXANOVA BARNO YERKEBAYEVNA" },
+      { class: "10-B", name: "GALPAKBAYEV MEYLIS AMANGELDIYEVICH" },
+      { class: "10-B", name: "AZATOVA IRODA KUDRATOVNA" },
+      { class: "10-B", name: "KARIMOV ELBEK ERGASHOVICH" },
+      { class: "10-B", name: "PARXATOV BEXRUZ UTKIROVICH" },
+      { class: "10-B", name: "JIYENBAYEV ADILBEK TAXIROVICH" },
+      { class: "10-B", name: "REYPNAZAROVA BIBISARA BAXTIYAROVNA" },
+      { class: "10-B", name: "МАТДУРДИЕВ АЗАТБЕК КАДАМБАЕВИЧ" },
+      { class: "10-B", name: "ERKINOVA MUXLISA SHERZOTOVNA" },
+      { class: "10-B", name: "SABITOVA KURALAY SABIT KIZI" },
+      { class: "10-B", name: "SAPARBAYEV SHERZOD SHAUKATOVICH" },
+      { class: "11-B", name: "САПАРНИЯЗОВ АСАДБЕK УРАЗБАЙ УЛЫ" },
+      { class: "11-B", name: "ДУРДЫБАЕВ ИСЛАМ КУВАНИЧ УЛЫ" },
+      { class: "11-B", name: "АЖИМУРАТОВ КУТЛЫМУРАТ ОМИРЗАКОВИЧ" },
+      { class: "11-B", name: "ЕШБАЕВ ДИЛШОД БАХАДИР УЛЫ" },
+      { class: "11-B", name: "ҒАЙРАТОВ УМИДЖОН АЛЛАМБЕРГАН ЎҒЛИ" },
+      { class: "11-B", name: "РАХМАНОВ БАТЫРБЕК АЛТЫ УЛЫ" },
+      { class: "11-B", name: "ХАЙБУЛЛАЕВ ИБРОХИМ МАХМУД УЛЫ" },
+      { class: "11-B", name: "БАЛТАБАЕВА ФАРАНГИЗ ХАМЗА ҚЫЗЫ" },
+      { class: "11-B", name: "ИСЛАМОВА МАФТУНА МАМУР КИЗИ" },
+      { class: "11-B", name: "ЖАНАБАЕВ ЖОВОХИР МАХМУДОВИЧ" },
+      { class: "11-B", name: "КАЗАКБАЕВ АЛИШЕР АЙБЕКОВИЧ" },
+      { class: "11-B", name: "ЮЛДАШЕВ ОЗОДБЕК РЕЖЕПБАЙ УЛЫ" },
+      { class: "11-B", name: "АРАЛБАЕВ АБИЎБАКИР АЗАМАТ УЛЫ" },
+      { class: "11-B", name: "ЖАНАБАЕВ ОЗОДБЕК БАХАДЫРОВИЧ" },
+      { class: "11-B", name: "ТУРСИНБАЕВА ШОХНОЗА БАХАДИРОВНА" },
+      { class: "11-B", name: "КАДРБЕРГЕНОВ АМИРБЕК БАХТИЯР УЛЫ" },
+      { class: "9-V", name: "ЖАЛГАСОВ МИРАС ИСАТАЕВИЧ" },
+      { class: "9-V", name: "ДАУЛЕТБАЕВА МАНЗУРА ГУЛАМЖАНОВНА" },
+      { class: "9-V", name: "НАРБАЕВ АБДУЛАЗИЗ АРТЫКБАЕВИЧ" },
+      { class: "9-V", name: "АБДИМУРАТОВ АЛЛАМУРАТ ТАТЛИМУРАТОВИЧ" },
+      { class: "9-V", name: "МУРАТБАЕВА ФАРАНГИЗ МАНСУРОВНА" },
+      { class: "9-V", name: "ХОЖАБАЕВ ОЗОДБЕК ДОВРАНБЕКОВИЧ" },
+      { class: "9-V", name: "НАЗАРБАЕВ РУСЛАНБЕК РУСТАМОВИЧ" },
+      { class: "9-V", name: "РАЖАПБАЕВ АБДУРАХМАН ИСЛАМОВИЧ" },
+      { class: "9-V", name: "САПАРБАЕВА ИРОДА АНГСАТБАЕВНА" },
+      { class: "9-V", name: "ЮСУПОВА АЙЖАМОЛ АМАНИЯЗ ҚИЗИ" },
+      { class: "9-V", name: "ЖУМАБАЕВА ЛАЙЛО БАТИРЖАН КЫЗЫ" },
+      { class: "9-V", name: "НУРАДДИНОВ АКБАР ШАМШЕДДИНОВИЧ" },
+      { class: "9-V", name: "КАЗАХБАЕВ АХМАТЖАН АБДУЛЛАЕВИЧ" },
+      { class: "9-V", name: "ЖАББАРБЕРГЕНОВА ФАРАНГИЗ ДАВРАНОВНА" },
+      { class: "9-V", name: "КДЫРБАЕВ АЛПАМЫС ЖУМАТДИН УЛЫ" },
+      { class: "9-V", name: "ЮЛДАШЕВА ДИЛДОРА ГУЛМИРЗАЕВНА" },
+      { class: "9-V", name: "ЮСУПОВА ДУРДАНА РАХИМОВНА" },
+      { class: "9-V", name: "КЕНЕСОВ БЕГИС КУАНЫШОВИЧ" },
+      { class: "9-V", name: "ОТЕНИЯЗОВА ГУЛДАНА АЗАМАТ КЫЗЫ" },
+      { class: "9-V", name: "ХАЙТБАЕВ ДАНИЁР МАДИЁРОВИЧ" },
+      { class: "9-V", name: "ЕСБОСЫНОВА ГУЛАЙЫМ КУАНЫШБАЙ КЫЗЫ" },
+      { class: "9-V", name: "ХОЖАНАЗАРОВА АЙНУРА ТАЖИБАЕВНА" },
+      { class: "9-V", name: "ИБАДУЛЛАЕВА ИНОБАТ КУАТБАЕВНА" },
+      { class: "7-A", name: "ISLAMOV SANJARBEK GULOMJONOVICH" },
+      { class: "7-A", name: "YULDASHEVA DILNOZA MUZAFFAR QIZI" },
+      { class: "7-A", name: "XALASHOV MUXAMMATALI PARAXAT O`G`LI" },
+      { class: "7-A", name: "NURLANOVA NAZERKE BERIK QIZI" },
+      { class: "7-A", name: "MADATOV OTABEK SHAVKATOVICH" },
+      { class: "7-A", name: "SAPARBAEV RUSLAN SHUXRATOVICH" },
+      { class: "7-A", name: "REJEPOV TIMUR RUSLANOVICH" },
+      { class: "7-A", name: "DURDIBAEVA ALBINA KUVANICHOVNA" },
+      { class: "7-A", name: "MAMETMURATOV JASURBEK ILYASJONOVICH" },
+      { class: "7-A", name: "ЖУМАМУРАТОВ МУҲАММАДАЛИ МУХИАТДИН ЎҒЛИ" },
+      { class: "7-A", name: "DJUMAMURATOVA DURDONA SABITOVNA" },
+      { class: "7-A", name: "JAMALADTINOV YERMUXAN JANABAY ULI" },
+      { class: "7-A", name: "YULDASHEVA LAYLO SHARIFBAEVNA" },
+      { class: "7-A", name: "XALILAEV BEGIS ILYASOVICH" },
+      { class: "7-A", name: "ТАЖИБАЕВ МАШРАББЕК КУРБАНБАЕВИЧ" },
+      { class: "7-A", name: "JAKSIMURATOVA NAZERKE SALIYEVNA" },
+      { class: "7-A", name: "KADEMBAEV RUFAT SHUXRATOVICH" },
+      { class: "7-A", name: "JAKSILIKOV JANDARBEK JANIBEK ULI" },
+      { class: "7-A", name: "WORINBETOV ARTUR POLATOVICH" },
+      { class: "7-A", name: "MUXAMMATDIYAROVA AYGUL MARATOVNA" },
+      { class: "7-A", name: "INIYATOV ASADBEK YERBOLOVICH" },
+      { class: "7-A", name: "PIREKOVA ZUXRA KOMEKOVNA" },
+      { class: "8-A", name: "УРАЗИМБЕТОВ ХУРШИДБЕК РАШИДОВИЧ" },
+      { class: "8-A", name: "ҚЫДЫРБАЕВ РУСЛАН ҚУАНЫШБАЙ УЛЫ" },
+      { class: "8-A", name: "ТАЖИБАЕВ НАВРУЗБАЙ КАМАЛАДДИНОВИЧ" },
+      { class: "8-A", name: "АХМЕДОВ АКРАМ АЗИЗОВИЧ" },
+      { class: "8-A", name: "ЕСЕНГЕЛДИЕВА ХУРЛИМАН САЛАМАТОВНА" },
+      { class: "8-A", name: "АБДИРИМОВА МУБИНА МУЗАФФАРОВНА" },
+      { class: "8-A", name: "ДЖУМАБАЕВА ГУЛНАЗА АЙБЕК КЫЗЫ" },
+      { class: "8-A", name: "АХМЕДОВ АТАНУР ПОЛАТБАЕВИЧ" },
+      { class: "8-A", name: "КАРИМБЕРГЕНОВ СУННАТБЕК БАКИРОВИЧ" },
+      { class: "8-A", name: "РУСТАМОВ ЭЛБЕК ШЕРЗОДОВИЧ" },
+      { class: "8-A", name: "АХМЕТОВ ЭЛЬБЕК ОЙБЕКОВИЧ" },
+      { class: "8-A", name: "КОНЫСБАЕВА ОРАЗГУЛ РОМАН ҚЫЗЫ" },
+      { class: "8-A", name: "ДАВЛЕТНАЗАРОВ АЙГУЛ АСКЕРБАЕВНА" },
+      { class: "8-A", name: "АЛЛАЯРОВ ЗУЛФИКАР ДАНИЯРОВИЧ" },
+      { class: "8-A", name: "БАЗАРБАЕВА ЛАЙЛО САПАРБАЕВНА" },
+      { class: "8-A", name: "ЖОЛДАСБАЕВ ДАМИР ТОКТАРБАЙ УЛЫ" },
+      { class: "8-A", name: "НУРАДДИНОВ БЕХРУЗБЕК НУРУЛЛАЕВИЧ" },
+      { class: "8-A", name: "TOJIBOYEV SODIQBEK HUMOYUN O`G`LI" },
+      { class: "8-A", name: "YESHKABULOVA ZARINA ADIXANOVNA" },
+      { class: "8-A", name: "УРАЗБАЕВА ШАХЗОДА КАМАЛАДДИНОВНА" },
+      { class: "8-A", name: "ТОРЕМУРАТОВ БУНЁДБЕК АХМАДОВИЧ" },
+      { class: "8-A", name: "САБУРОВ ОҒАБЕК ЭКРАМОВИЧ" },
+      { class: "8-A", name: "ЖОЛДАСБАЕВА БАРНО ОРАЛБАЕВНА" },
+      { class: "8-B", name: "КУРБАНБАЕВА ШАХИДА ИЛХОМОВНА" },
+      { class: "8-B", name: "РЕЙМБАЕВ АКМАЛБЕК БАХРАМОВИЧ" },
+      { class: "8-B", name: "ПАРАХАТОВА ХАЁТХОН УТКИРОВНА" },
+      { class: "8-B", name: "КДЫРБАЕВ АЗАМАТ АЗАТБАЕВИЧ" },
+      { class: "8-B", name: "ШЕРИПБАЕВ ЗИЁДБЕК АМАНГЕЛДИ УҒЛИ" },
+      { class: "8-B", name: "НАРБАЕВ ДИЯРБЕК АНВАРОВИЧ" },
+      { class: "8-B", name: "ЭРГАШБАЕВА МУНИРА КАМИЛ КИЗИ" },
+      { class: "8-B", name: "AXMEDINOV BAXITJAN BAUIRJAN ULI" },
+      { class: "8-B", name: "ОРАЗМУХАММЕТДИНОВА ДИАНА ИЛХАМОВНА" },
+      { class: "8-B", name: "УРАЗБАЕВ БЕХРУЗ ИЛХОМ УЛЫ" },
+      { class: "8-B", name: "ТОЛЫБАЕВ МАМАНБИЙ ЖОЛДАСБАЕВИЧ" },
+      { class: "8-B", name: "МАХСЕТБАЕВА НАБИРА ЮСУПОВНА" },
+      { class: "8-B", name: "БАХТИЯРОВА ГОЗАЛ ОТАБЕК ҚЫЗЫ" },
+      { class: "8-B", name: "РЕЙПНАЗАРОВ АЙНАЗАР БАХТИЯР УЛЫ" },
+      { class: "8-B", name: "РАМАТУЛЛАЕВА КУНДУЗ АЗАМАТ КЫЗЫ" },
+      { class: "8-B", name: "ЖАКСЫМУРАТОВ ИСАТАЙ САЛЫЙ УЛЫ" },
+      { class: "8-B", name: "ЧАВДЫРБАЕВ САЛАВАТ ЮЛДАШБАЕВИЧ" },
+      { class: "8-B", name: "МЕДЕТБАЕВ АНСАТБАЙ КУДИЯРОВИЧ" },
+      { class: "8-B", name: "САКТАНОВА МАФТУНА ЖУМАБАЕВНА" },
+      { class: "8-B", name: "АМАНГЕЛДИЕВ ЭЛБЕК ШУХРАТОВИЧ" },
+      { class: "8-B", name: "НАРИМБЕТОВ ДАВРОНБЕК КАДЕМБАЕВИЧ" },
+      { class: "8-B", name: "КУРАЛБАЕВА ЛАЙЛО БАТЫРОВНА" },
+      { class: "8-B", name: "САРСЕНБАЕВ РАХИМ САЛАМАТ УЛЫ" },
+      { class: "8-B", name: "АБДУЛЛАЕВ ИСЛАМБЕК ИЛХОМЖАНОВИЧ" },
+      { class: "10-A", name: "RUSDEMBAYEV SULTANBEK BATIROVICH" },
+      { class: "10-A", name: "MAMETMURATOVA JASMINA ILYASJANOVNA" },
+      { class: "10-A", name: "JUMABAYEVA SEVINCH DAVRONBEKOVNA" },
+      { class: "10-A", name: "ASHIRBAYEVA SHOHZODA SHUXRAT QIZI" },
+      { class: "10-A", name: "NUKUSBAEVA MADINA ATABAY QÍZÍ" },
+      { class: "10-A", name: "ФАЙЗУЛЛАЕВ ДОНИЁРБЕК ИСЛАМБЕКОВИЧ" },
+      { class: "10-A", name: "PALTAYEV ATAGELDI DURDIBAYEVICH" },
+      { class: "10-A", name: "MURATBAEV DAULET MARATOVICH" },
+      { class: "10-A", name: "KÍDÍRBAEV ADILBEK PARAXATOVICH" },
+      { class: "10-A", name: "SABUROV BEXRUZBEK RASHIDOVICH" },
+      { class: "10-A", name: "REJEPOV BEKZOD PARAXATOVICH" },
+      { class: "10-A", name: "KARIMBAYEVA OZODA ALIJANOVNA" },
+      { class: "10-A", name: "TENELBAYEV SHAXZOD KOMEKBAY ULI" },
+      { class: "10-A", name: "ALLABAEV ALÍMJAN MUXAMMETNAZAROVICH" },
+      { class: "10-A", name: "SAATBAYEVA UMIDA PULATOVNA" },
+      { class: "10-A", name: "URINBAYEVA UMIDA SHUXRAT KIZI" },
+      { class: "10-A", name: "ABDIKADIROV SULAYMAN MAXSUDOVICH" },
+      { class: "10-A", name: "XALILLAYEV MUXIDDIN UBAYDULLAYEVICH" },
+      { class: "10-A", name: "SALIJANOV BUNYODJON AZAMAT O‘G‘LI" },
+      { class: "10-A", name: "KURAMBAYEVA NORGUL POLAT QIZI" },
+      { class: "10-A", name: "AMANMUXAMETOVA PERIZAT TAXIROVNA" },
+      { class: "10-A", name: "SOYINOVA SENEMJAN KAKABAYEVNA" },
+      { class: "11-A", name: "ЭРКИНОВ ЖАВОҲИР АЛИШЕР УҒЛИ" },
+      { class: "11-A", name: "РАДЖЕПОВА САРБИНАЗ РАШИДОВНА" },
+      { class: "11-A", name: "КЫДЫРБАЕВ САМАНДАР ИЛХОМОВИЧ" },
+      { class: "11-A", name: "ГУЛМУРЗАЕВА МАРЖОНА ШАВКАТ ҚИЗИ" },
+      { class: "11-A", name: "ДЖУМАМУРАТОВ ҚУДРАТ САБИТОВИЧ" },
+      { class: "11-A", name: "АХМЕТОВ ЖУРАБЕК ОЙБЕКОВИЧ" },
+      { class: "11-A", name: "УРАЗБАЕВА СОГДИАНА СЕЙТМЫРАТ ҚЫЗЫ" },
+      { class: "11-A", name: "KURALBAEV JAVLONBEK DJALALATDINOVICH" },
+      { class: "11-A", name: "YAKUBBAYEV JAVLONBEK ULUGBEK ULI" },
+      { class: "9-A", name: "НОРМАТОВА ГУЛЗОДА РУСТАМ ҚИЗИ" },
+      { class: "9-A", name: "ХОЖАМУРАДОВ РАСУЛБЕК ФАРХАДОВИЧ" },
+      { class: "9-A", name: "РАЙИМОВА ШАХРИЗОДА РУФАТОВНА" },
+      { class: "9-A", name: "РЗАМБЕТОВА ФЕРУЗА АЗАТОВНА" },
+      { class: "9-A", name: "НУРИМБЕТОВ БУНЁДБЕК ДИЛМУРАТОВИЧ" },
+      { class: "9-A", name: "АБАТОВ ДАМИР ИЛХАМОВИЧ" },
+      { class: "9-A", name: "БАЗАРБАЕВ ДИЁРБЕК САПАРБАЕВИЧ" },
+      { class: "9-A", name: "БАЗАРБАЕВА ДИЛНАЗА АЙБЕК КЫЗЫ" },
+      { class: "9-A", name: "БАХТИЯРОВ АСЫЛБЕК АЙБЕКОВИЧ" },
+      { class: "9-A", name: "АМАНГЕЛДИЕВ ДОВЛЕТЯР ХОШГЕЛДИ УЛЫ" },
+      { class: "9-A", name: "КЕНЕСБАЕВ БЕРДАХ КУАНЫШБАЕВИЧ" },
+      { class: "9-A", name: "ХУДАЙБЕРГЕНОВ ДАУЫТБАЙ НИЕТБАЕВИЧ" },
+      { class: "9-A", name: "ОРАЗБАЕВА ДИЛНОЗА МАКСАДОВНА" },
+      { class: "9-A", name: "КАРИМБАЕВ АХРОРБЕК АЗАМАТОВИЧ" },
+      { class: "9-A", name: "ШАМШЕТДИНОВ МИЙРАСБЕК САЛАМАТ УЛЫ" },
+      { class: "9-A", name: "ЗАРИПБАЕВ НУРУЛЛА АЗАМАТОВИЧ" },
+      { class: "9-A", name: "МАМУТОВА МУХАББАТ МУЗАФАРОВНА" },
+      { class: "9-A", name: "АЖИМУРАТОВА ЗАРИНА ОМИРЗАКОВНА" },
+      { class: "9-A", name: "ХАЙДАРОВ УМИД АЙТБАЕВИЧ" },
+      { class: "9-A", name: "ЖУМАБАЕВ ХУСНИДДИН ЗАМИРОВИЧ" },
+      { class: "9-A", name: "ОРАЗБАЕВА ЧАРОС МАНСУР КИЗИ" },
+      { class: "9-A", name: "РИМБЕРГЕНОВ ОТАБЕК ШАВКАТОВИЧ" },
+      { class: "5-A", name: "ACHILOVA NILUFAR MAXMUDOVNA" },
+      { class: "5-A", name: "RUSTEMOV XURSANDBEK XAMDAMOVICH" },
+      { class: "5-A", name: "ORAZIMBETOV MUSTAFO FURXADOVICH" },
+      { class: "5-A", name: "URAZBAYEVA ZARINA AZATOVNA" },
+      { class: "5-A", name: "KUBAIKULIYEV POLAT NURGELDIYEVICH" },
+      { class: "5-A", name: "YUSUPOV SHAXZODBEK RAXIMOVICH" },
+      { class: "5-A", name: "SAPARBAYEVA AYSULI`U AZAMATOVNA" },
+      { class: "5-A", name: "RAJAPOVA MAFTUNA ODILBEKOVNA" },
+      { class: "5-A", name: "SAPARBAEVA OLTINOY ERGASH QIZI" },
+      { class: "5-A", name: "YERKINOV ELBEK MANSUROVICH" },
+      { class: "5-A", name: "SEYTBAYEVA JULDI`Z POLATOVNA" },
+      { class: "5-A", name: "MAULENOVA BARNO AZAMAT QI`ZI`" },
+      { class: "5-A", name: "TIRKESHBAYEVA MOXINUR MAMUTOVNA" },
+      { class: "5-A", name: "XAYTMURATOVA NAZIRA KUDRATOVNA" },
+      { class: "5-A", name: "QIDIRBAYEVA SHADIYA XAMROEVNA" },
+      { class: "5-A", name: "RUSTAMOVA MAFTUNA ILXOMJONOVNA" },
+      { class: "5-A", name: "YUNUSBAYEVA MUNISA OXUNJONOVNA" },
+      { class: "5-A", name: "TLEUMURATOVA DULNURA BEKZOD QIZI" },
+      { class: "5-A", name: "ORAZBAYEVA SHOIRA OYBEKOVNA" },
+      { class: "5-A", name: "BAZARBAYEVA SABRINA DAVLATIYAROVNA" },
+      { class: "5-A", name: "ALLAMBERGENOVA NIGINA SALOMATOVNA" },
+      { class: "5-A", name: "ORINBAYEVA JASMINA ANVAROVNA" },
+      { class: "5-A", name: "CHI`NDOVLETOV SULAYMAN SERDAROVICH" },
+      { class: "5-A", name: "MATCHANOVA SHODIYONA URAZBAY QIZI" },
+      { class: "5-B", name: "DOSTANOV NURJAN SERIKBAEVICH" },
+      { class: "5-B", name: "BALTABAYEV JANDOS INAYAT ULI`" },
+      { class: "5-B", name: "POLATOVA GULSAWIR DAURANBEKOVNA" },
+      { class: "5-B", name: "Elmurzayev Qoblan Saylievich" },
+      { class: "5-B", name: "JABBARBERGENOVA JASMINA ADILBAYEVNA" },
+      { class: "5-B", name: "ABDUKARIMOV IBROHIM ABDIRAXIMOVICH" },
+      { class: "5-B", name: "BAZARBAYEV BAKIR BERDAXOVICH" },
+      { class: "5-B", name: "JIEMURATOV YERNAZAR AYDOSOVICH" },
+      { class: "5-B", name: "MURATOV SOXBET IXLASOVICH" },
+      { class: "5-B", name: "BAZARBAEVA KAMILA SAPARBAEVNA" },
+      { class: "5-B", name: "ORAZIMBETOVA MALIKA G`ULOMOVNA" },
+      { class: "5-B", name: "ARTIQBAEV ABROR IN`OMJAN O`G`LI" },
+      { class: "5-B", name: "XAYTBAYEVA NARGIZA IKROMJANOVNA" },
+      { class: "5-B", name: "IBAYDULLAYEV BEGARI`S SERIK ULI`" },
+      { class: "5-B", name: "XOJANTAYEVA DIANA DARYABAY QI`ZI`" },
+      { class: "5-B", name: "DJUMABAYEVA MUNIRA KENESBAY KI`ZI`" },
+      { class: "5-B", name: "ORI`NBAYEV ASADBEK KUTLI`MURATOVICH" },
+      { class: "5-B", name: "REJEPNAZAROV DILSHADBEK ISHANGULIYEVICH" },
+      { class: "5-B", name: "SULTAMURATOVA AYJAMAL ATAMURAT QI`ZI`" },
+      { class: "5-B", name: "TOLEGENOV NURASI`L SALAMAT ULI`" },
+      { class: "5-B", name: "SAPARBEKOV MUWSABEK MUXTARJAN ULI`" },
+      { class: "5-B", name: "TOLEGENOV YERASI`L SALAMAT ULI`" },
+      { class: "5-B", name: "RAJAPOVA CHAROS AZIMJONOVNA" },
+      { class: "5-B", name: "MARATOV RAXMAN MARATOVICH" },
+      { class: "6-A", name: "URAZBAEVA RANO IXTIYOROVNA" },
+      { class: "6-A", name: "IBRAGIMOV RAVSHANBEK JENGISBAEVICH" },
+      { class: "6-A", name: "AMANBAEVA HURLIMAN WONGARBAEVNA" },
+      { class: "6-A", name: "MURATBAEVA ZILOLA JAHONGIROVNA" },
+      { class: "6-A", name: "YULDASHOVA GULNOZA ALISHEROVNA" },
+      { class: "6-A", name: "RAJAPBAYEVA SOXIBA ALISHEROVNA" },
+      { class: "6-A", name: "ABDULLAEVA ASAL KALBAEVNA" },
+      { class: "6-A", name: "PARXATOV XURSAND AZIZOVICH" },
+      { class: "6-A", name: "XAYTBAEVA GULDANA MAXSETOVNA" },
+      { class: "6-A", name: "AZATBAYEVA ZILOLA ANVATOVNA" },
+      { class: "6-A", name: "BAZARBAEV NURBEK ANVAROVICH" },
+      { class: "6-A", name: "QOZIBAEV AVZALBEK KEULIMJAY ULI" },
+      { class: "6-A", name: "SAPARBAEV BEKZOD SHAVKATOVICH" },
+      { class: "6-A", name: "MAVLENBERGENOV AMIR ILXOMOVICH" },
+      { class: "6-A", name: "SULTANMURADOV XURSHID SHUXRATOVICH" },
+      { class: "6-A", name: "DOSMANOVA MUQADDAS GULOMJONOVNA" },
+      { class: "6-A", name: "ARTIKBAEVA LOBAR INOMJANOVNA" },
+      { class: "6-A", name: "SULTANOVA IRODA NEMATJANOVNA" },
+      { class: "6-A", name: "XAKAYEVA GULZADA AMANGELDIYEVNA" },
+      { class: "6-A", name: "TURSUNBAEVA QARASHASH SHUKURULLAEVNA" },
+      { class: "6-A", name: "ONGARBAYEV MUSLIMBEK SULTANBEK ULI" },
+      { class: "6-A", name: "SABUROVA SOHIBA DOVRONBEKOVNA" },
+      { class: "6-A", name: "SAPARBAEV BEXRUZ ANVAROVICH" },
+      { class: "6-A", name: "ISMAILOVA UMIDA OYBEKOVNA" },
+      { class: "6-B", name: "JUMABAYEVA RUXSHONA AZIMJAN KIZI" },
+      { class: "6-B", name: "YUSUPOVA MUBINA TURSINBAYEVNA" },
+      { class: "6-B", name: "KURBANBAEV DIDAR BERDIMURATOVICH" },
+      { class: "6-B", name: "XAYTBAYEV RISQITILLO NIYAZIMBETOVICH" },
+      { class: "6-B", name: "KENJEBAEV ABDULAZIZ XAMRA UGLI" },
+      { class: "6-B", name: "JOLDASBAYEV KOMRON NURLAN ULI" },
+      { class: "6-B", name: "JOLDASBAYEVA ULJAN IKRAMJAN KIZI" },
+      { class: "6-B", name: "BAXTIYAROVA SHADIYANA SALAMATOVNA" },
+      { class: "6-B", name: "IBRAGIMOVA BARNO MANSUROVNA" },
+      { class: "6-B", name: "BAZARBAEV NODIRBEK ABROROVICH" },
+      { class: "6-B", name: "GAYIPBAEVA MUNISA AMANBAEVNA" },
+      { class: "6-B", name: "ISLAMOV SAIDBEK MANSUROVICH" },
+      { class: "6-B", name: "SADULLAEVA ASALOY AKMALOVNA" },
+      { class: "6-B", name: "XOJABAYEVA DILNOZA DOVRANBEKOVNA" },
+      { class: "6-B", name: "MAKSETBAYEVA MADINABANU AMANGELDIYEVNA" },
+      { class: "6-B", name: "MAULENBERGENOV HAKIMBEK ULUGBEKOVICH" },
+      { class: "6-B", name: "GURBANGELDIYEV MUXAMMET SHOXRATOVICH" },
+      { class: "6-B", name: "ALMUXAMEDOV SEIDNUR NUERGELDIEVICH" },
+      { class: "6-B", name: "ALLAMURATOVA GUZAL SHUXRATJAN KIZI" },
+      { class: "6-B", name: "KASHKINBAYEVA INKAR JETKERBAYEVNA" }
+    ];
+
+    // Global O'zgaruvchilar
+    let currentUser = null;
+    let clickCount = 0;
+    let clickTimer = null;
+    let currentDayStr = new Date().toISOString().split('T')[0];
+
+    let cachedTeachers = {};
+    let cachedStudents = {};
+    let cachedAttendance = {};
+
+    let ratingChart = null;
+    let dynamicChart = null;
+
+    // 3. TIZIMNI ISHGA TUSHIRISH VA SINXRONIZATSIYA
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('currentDateDisplay').innerText = currentDayStr + " holatiga";
+      initDatabaseDefaults();
+
+      // Realtime Tinglovchilar
+      db.ref('teachers').on('value', snap => {
+        cachedTeachers = snap.val() || {};
+        if (currentUser) renderViews();
+      });
+
+      db.ref('students').on('value', snap => {
+        cachedStudents = snap.val() || {};
+        if (currentUser) renderViews();
+      });
+
+      db.ref(`attendance/${currentDayStr}`).on('value', snap => {
+        cachedAttendance = snap.val() || {};
+        if (currentUser) renderViews();
+      });
+
+      // Sahifa yangilanganda qayta login so'ramaslik
+      const savedUser = localStorage.getItem('school_attendance_user');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        showApp();
+      }
+    });
+
+    // Bazani ilk marta avtomatik to'ldirish
+    function initDatabaseDefaults() {
+      db.ref('teachers').once('value', snap => {
+        if (!snap.exists()) {
+          const tMap = {};
+          INITIAL_TEACHERS.forEach(t => tMap[t.id] = t);
+          db.ref('teachers').set(tMap);
+        }
+      });
+
+      db.ref('students').once('value', snap => {
+        if (!snap.exists()) {
+          const sMap = {};
+          INITIAL_RAW_STUDENTS.forEach((st, idx) => {
+            const sid = "s_" + (idx + 1);
+            sMap[sid] = { id: sid, name: st.name, class: st.class };
+          });
+          db.ref('students').set(sMap);
+        }
+      });
+    }
+
+    // 4. KIRISH VA CREATOR MANTIQI
+    function onLoginBtnClick(e) {
+      clickCount++;
+      clearTimeout(clickTimer);
+      clickTimer = setTimeout(() => {
+        if (clickCount >= 5) {
+          openCreatorModal();
+        } else if (clickCount === 1) {
+          handleLogin(e);
+        }
+        clickCount = 0;
+      }, 350);
+    }
+
+    function openCreatorModal() {
+      document.getElementById('creatorModal').classList.remove('hidden');
+      document.getElementById('creatorCodeInput').value = '';
+      document.getElementById('creatorCodeInput').focus();
+    }
+
+    function closeCreatorModal() {
+      document.getElementById('creatorModal').classList.add('hidden');
+    }
+
+    function verifyCreatorCode() {
+      const code = document.getElementById('creatorCodeInput').value;
+      if (code === "01020304") {
+        currentUser = {
+          id: "creator",
+          name: "PLATFORM CREATOR",
+          role: "creator",
+          class: ""
+        };
+        localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
+        closeCreatorModal();
+        showApp();
+      } else {
+        alert("Xato maxfiy kod!");
+      }
+    }
+
+    function handleLogin(e) {
+      if (e) e.preventDefault();
+      const u = document.getElementById('loginUsername').value.trim();
+      const p = document.getElementById('loginPassword').value.trim();
+      const err = document.getElementById('loginError');
+
+      const teacherList = Object.values(cachedTeachers);
+      const found = teacherList.find(t => t.login === u && t.pass === p);
+
+      if (found) {
+        err.classList.add('hidden');
+        currentUser = found;
+        localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
+        showApp();
+      } else {
+        err.classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('school_attendance_user');
+      currentUser = null;
+      document.getElementById('appScreen').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+    }
+
+    // 5. ASOSIY EKRAN VA MENYULAR
+    function showApp() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('appScreen').classList.remove('hidden');
+
+      const roleBadge = document.getElementById('userRoleBadge');
+      const tabs = document.getElementById('navTabs');
+      tabs.innerHTML = '';
+
+      if (currentUser.role === 'creator') {
+        roleBadge.innerText = "Creator Rejimi (Cheksiz Huquq)";
+        tabs.innerHTML = `
+          <button onclick="switchTab('tabAnalytics')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-blue-600">Umumiy Tahlil</button>
+          <button onclick="switchTab('tabTakeAttendance')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600">Davomat Olish</button>
+          <button onclick="switchTab('tabStudentsManage')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600">O'quvchilar</button>
+          <button onclick="switchTab('tabTeachersManage')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600">Xodimlar</button>
+        `;
+        populateClassDropdowns(true);
+        switchTab('tabAnalytics');
+      } else if (currentUser.role === 'admin') {
+        roleBadge.innerText = "Maktab Administratori";
+        tabs.innerHTML = `
+          <button onclick="switchTab('tabAnalytics')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-blue-600">Umumiy Tahlil</button>
+          <button onclick="switchTab('tabStudentsManage')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600">O'quvchilar</button>
+          <button onclick="switchTab('tabTeachersManage')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600">Xodimlar</button>
+        `;
+        populateClassDropdowns(true);
+        switchTab('tabAnalytics');
+      } else if (currentUser.role === 'class_leader') {
+        roleBadge.innerText = `${currentUser.name} (${currentUser.class} rahbari)`;
+        tabs.innerHTML = `
+          <button onclick="switchTab('tabTakeAttendance')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-blue-600">Dars Davomati</button>
+          <button onclick="switchTab('tabClassLeader')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-600">${currentUser.class} Boshqaruvi</button>
+        `;
+        populateClassDropdowns(false);
+        switchTab('tabTakeAttendance');
+      } else {
+        roleBadge.innerText = `${currentUser.name} (Fan O'qituvchisi)`;
+        tabs.innerHTML = `
+          <button onclick="switchTab('tabTakeAttendance')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-blue-600">Dars Davomati</button>
+        `;
+        populateClassDropdowns(true);
+        switchTab('tabTakeAttendance');
+      }
+
+      renderViews();
+    }
+
+    function switchTab(tabId) {
+      ['tabAnalytics', 'tabTakeAttendance', 'tabClassLeader', 'tabStudentsManage', 'tabTeachersManage'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+
+      // Tugma stillari yangilash
+      const navButtons = document.querySelectorAll('#navTabs button');
+      navButtons.forEach(btn => {
+        if (btn.getAttribute('onclick').includes(tabId)) {
+          btn.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-white shadow-sm text-blue-600";
+        } else {
+          btn.className = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-600";
+        }
+      });
+
+      if (tabId === 'tabAnalytics') renderCharts();
+    }
+
+    function populateClassDropdowns(showAll) {
+      const classes = ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A", "11-B"];
+      
+      const teacherClassSel = document.getElementById('teacherSelectClass');
+      teacherClassSel.innerHTML = '';
+      if (!showAll && currentUser.class) {
+        classes.forEach(c => {
+          teacherClassSel.innerHTML += `<option value="${c}" ${c === currentUser.class ? 'selected' : ''}>${c}</option>`;
+        });
+      } else {
+        classes.forEach(c => teacherClassSel.innerHTML += `<option value="${c}">${c}</option>`);
+      }
+
+      const chartSel = document.getElementById('chartClassSelect');
+      chartSel.innerHTML = '';
+      classes.forEach(c => chartSel.innerHTML += `<option value="${c}">${c}</option>`);
+
+      const filterSel = document.getElementById('filterClassTable');
+      filterSel.innerHTML = '<option value="ALL">Barcha Sinflar</option>';
+      classes.forEach(c => filterSel.innerHTML += `<option value="${c}">${c}</option>`);
+    }
+
+    function renderViews() {
+      if (!currentUser) return;
+      if (currentUser.role === 'admin' || currentUser.role === 'creator') {
+        renderAdminAnalytics();
+        renderAdminAttendanceTable();
+        renderStudentsManageTable();
+        renderTeachersManageTable();
+      }
+      if (currentUser.role === 'class_leader') {
+        renderClassLeaderTable();
+      }
+      renderTeacherAttendanceTable();
+    }
+
+    // 6. TAHLIL VA GRAFIKLAR (ADMIN & CREATOR)
+    function renderAdminAnalytics() {
+      const allStudents = Object.values(cachedStudents);
+      const totalStudents = allStudents.length;
+      let totalAbsent = 0;
+
+      // Sinf foizlari
+      const classMap = {};
+      ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A", "11-B"].forEach(c => {
+        classMap[c] = { total: 0, absent: 0 };
+      });
+
+      allStudents.forEach(st => {
+        if (!classMap[st.class]) classMap[st.class] = { total: 0, absent: 0 };
+        classMap[st.class].total++;
+
+        // Tekshirish: o'quvchi bugun yo'qmi?
+        const dayRecord = (cachedAttendance[st.id] || {});
+        const isAbsent = Object.values(dayRecord).some(status => status === 'absent');
+        if (isAbsent) {
+          totalAbsent++;
+          classMap[st.class].absent++;
+        }
+      });
+
+      const totalPresent = Math.max(0, totalStudents - totalAbsent);
+      const exactPercent = totalStudents > 0 ? ((totalPresent / totalStudents) * 100).toFixed(1) : 100.0;
+
+      document.getElementById('statTotalStudents').innerText = `${totalStudents} ta`;
+      document.getElementById('statTotalPresent').innerText = `${totalPresent} ta`;
+      document.getElementById('statTotalAbsent').innerText = `${totalAbsent} ta`;
+      document.getElementById('statTotalPercent').innerText = `${exactPercent}%`;
+
+      // 1-rasmdagi kichik sinf bloklarini chizish
+      const grid = document.getElementById('classCardsGrid');
+      grid.innerHTML = '';
+      Object.keys(classMap).forEach(cls => {
+        const item = classMap[cls];
+        const bor = item.total - item.absent;
+        const pct = item.total > 0 ? ((bor / item.total) * 100).toFixed(1) : 100.0;
+
+        grid.innerHTML += `
+          <div class="border border-slate-200 rounded-xl p-2.5 bg-slate-50 text-center">
+            <div class="flex items-center justify-between text-xs font-black text-slate-700">
+              <span>${cls}</span>
+              <span class="text-emerald-600">${pct}%</span>
+            </div>
+            <div class="w-full bg-slate-200 h-1.5 rounded-full my-1.5 overflow-hidden">
+              <div class="bg-emerald-500 h-full" style="width: ${pct}%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-500 font-bold">
+              <span>Bor: ${bor}</span>
+              <span>Yo'q: ${item.absent}</span>
+            </div>
+          </div>
+        `;
+      });
+
+      renderCharts(classMap);
+    }
+
+    function renderCharts(classMap) {
+      if (!classMap) {
+        renderAdminAnalytics();
+        return;
+      }
+
+      // 1. Sinflar reytingi ustunli grafigi
+      const labels = Object.keys(classMap);
+      const dataValues = labels.map(c => {
+        const item = classMap[c];
+        return item.total > 0 ? ((item.total - item.absent) / item.total * 100).toFixed(1) : 100;
+      });
+
+      const ctxRating = document.getElementById('classRatingChart').getContext('2d');
+      if (ratingChart) ratingChart.destroy();
+      ratingChart = new Chart(ctxRating, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Davomat foizi (%)',
+            data: dataValues,
+            backgroundColor: '#3b82f6',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } }
+        }
+      });
+
+      renderDynamicChart();
+    }
+
+    function renderDynamicChart() {
+      const selectedClass = document.getElementById('chartClassSelect').value;
+      const lessonHours = ['ERT', '1-dars', '2-dars', '3-dars', '4-dars', '5-dars', '6-dars', '7-dars'];
+
+      // Tanlangan sinf o'quvchilari
+      const classStudents = Object.values(cachedStudents).filter(st => st.class === selectedClass);
+      const total = classStudents.length;
+
+      const dynamicPcts = lessonHours.map((lh, idx) => {
+        if (total === 0) return 100;
+        let absentCount = 0;
+        const key = idx === 0 ? 'ERT' : String(idx);
+
+        classStudents.forEach(st => {
+          const rec = (cachedAttendance[st.id] || {})[key];
+          if (rec === 'absent') absentCount++;
+        });
+        return (((total - absentCount) / total) * 100).toFixed(1);
+      });
+
+      const ctxDynamic = document.getElementById('lessonDynamicChart').getContext('2d');
+      if (dynamicChart) dynamicChart.destroy();
+      dynamicChart = new Chart(ctxDynamic, {
+        type: 'line',
+        data: {
+          labels: lessonHours,
+          datasets: [{
+            label: `${selectedClass} davomat dinamikasi (%)`,
+            data: dynamicPcts,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } }
+        }
+      });
+    }
+
+    function renderAdminAttendanceTable() {
+      const filter = document.getElementById('filterClassTable').value;
+      const tbody = document.getElementById('adminAttendanceTableBody');
+      tbody.innerHTML = '';
+
+      let list = Object.values(cachedStudents);
+      if (filter !== 'ALL') {
+        list = list.filter(st => st.class === filter);
+      }
+
+      list.forEach((st, idx) => {
+        const att = cachedAttendance[st.id] || {};
+        
+        const getIcon = (val) => {
+          if (!val || val === 'present') return `<i class="fa-solid fa-circle-check text-emerald-500"></i>`;
+          if (val === 'absent') return `<i class="fa-solid fa-circle-xmark text-rose-500"></i>`;
+          if (val === 'late') return `<i class="fa-solid fa-clock text-amber-500" title="Kechikdi"></i>`;
+          if (val === 'excused') return `<i class="fa-solid fa-info-circle text-blue-500" title="Sababli"></i>`;
+          if (val === 'permitted') return `<i class="fa-solid fa-award text-purple-500" title="Ruxsat etilgan"></i>`;
+          return `<i class="fa-solid fa-circle-check text-emerald-500"></i>`;
+        };
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-semibold text-slate-400">${idx + 1}</td>
+            <td class="p-3 font-bold text-slate-800">${st.name}</td>
+            <td class="p-3 font-bold text-blue-600">${st.class}</td>
+            <td class="p-3 text-center">${getIcon(att['ERT'])}</td>
+            <td class="p-3 text-center">${getIcon(att['1'])}</td>
+            <td class="p-3 text-center">${getIcon(att['2'])}</td>
+            <td class="p-3 text-center">${getIcon(att['3'])}</td>
+            <td class="p-3 text-center">${getIcon(att['4'])}</td>
+            <td class="p-3 text-center">${getIcon(att['5'])}</td>
+            <td class="p-3 text-center">${getIcon(att['6'])}</td>
+            <td class="p-3 text-center">${getIcon(att['7'])}</td>
+            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-black bg-emerald-100 text-emerald-700">100.0%</span></td>
+          </tr>
+        `;
+      });
+    }
+
+    // 7. DAVOMAT OLISH MANTIQI (FAN O'QITUVCHISI & SINF RAHBARI)
+    function renderTeacherAttendanceTable() {
+      const selectedClass = document.getElementById('teacherSelectClass').value;
+      const lessonHour = document.getElementById('teacherSelectLessonHour').value;
+      const tbody = document.getElementById('teacherAttendanceTableBody');
+      tbody.innerHTML = '';
+
+      const students = Object.values(cachedStudents).filter(s => s.class === selectedClass);
+
+      students.forEach((st, idx) => {
+        const att = cachedAttendance[st.id] || {};
+        const ertStatus = att['ERT']; // Sinf rahbari qo'ygan holat
+        const currentStatus = att[lessonHour] || 'present';
+
+        let statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-present">Bor</span>`;
+        let isLockedByLeader = false;
+
+        if (ertStatus === 'excused') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-excused">Sababli (Sinf Rahbari)</span>`;
+          isLockedByLeader = true;
+        } else if (ertStatus === 'permitted') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-permitted">Ruxsat etilgan (Olimpiada)</span>`;
+          isLockedByLeader = true;
+        } else if (currentStatus === 'absent') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-absent">Darsda Yo'q</span>`;
+        } else if (currentStatus === 'late') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-xs font-bold badge-late">Kechikdi</span>`;
+        }
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-4 font-semibold text-slate-400">${idx + 1}</td>
+            <td class="p-4 font-bold text-slate-800">${st.name}</td>
+            <td class="p-4">${statusBadge}</td>
+            <td class="p-4 text-right space-x-2">
+              ${isLockedByLeader ? `
+                <span class="text-xs text-slate-400 font-semibold italic">Sinf rahbari tomonidan belgilangan</span>
+              ` : `
+                <button onclick="setAttendanceStatus('${st.id}', '${lessonHour}', 'absent')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold">Yo'q</button>
+                <button onclick="setAttendanceStatus('${st.id}', '${lessonHour}', 'late')" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg text-xs font-bold">Kechikdi</button>
+                <button onclick="setAttendanceStatus('${st.id}', '${lessonHour}', 'present')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold">Bor</button>
+              `}
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function setAttendanceStatus(studentId, lessonKey, status) {
+      db.ref(`attendance/${currentDayStr}/${studentId}/${lessonKey}`).set(status);
+    }
+
+    // 8. SINF RAHBARI O'Z SINFI BOSHQARUVI
+    function renderClassLeaderTable() {
+      document.getElementById('classLeaderHeaderTitle').innerText = `${currentUser.class} Sinf Rahbari Nazorati`;
+      const tbody = document.getElementById('classLeaderStudentsTable');
+      tbody.innerHTML = '';
+
+      const students = Object.values(cachedStudents).filter(s => s.class === currentUser.class);
+
+      students.forEach((st, idx) => {
+        const att = cachedAttendance[st.id] || {};
+        const ert = att['ERT'] || 'present';
+
+        let badge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-700">Oddiy</span>`;
+        if (ert === 'excused') badge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-700">Sababli</span>`;
+        if (ert === 'permitted') badge = `<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-700">Ruxsat etilgan</span>`;
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-semibold text-slate-400">${idx + 1}</td>
+            <td class="p-3 font-bold text-slate-800">${st.name}</td>
+            <td class="p-3">${badge}</td>
+            <td class="p-3 text-right space-x-1">
+              <button onclick="setAttendanceStatus('${st.id}', 'ERT', 'excused')" class="px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-xs font-bold">Sababli</button>
+              <button onclick="setAttendanceStatus('${st.id}', 'ERT', 'permitted')" class="px-2 py-1 bg-purple-50 text-purple-600 hover:bg-purple-100 rounded text-xs font-bold">Ruxsat etilgan</button>
+              <button onclick="setAttendanceStatus('${st.id}', 'ERT', 'present')" class="px-2 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded text-xs font-bold">Bekor qilish</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    // 9. O'QUVCHILAR RO'YXATI BOSHQARUVI (2-rasm)
+    function renderStudentsManageTable() {
+      const q = (document.getElementById('searchStudentInput').value || '').toLowerCase();
+      const tbody = document.getElementById('manageStudentsTableBody');
+      tbody.innerHTML = '';
+
+      const list = Object.values(cachedStudents).filter(st => st.name.toLowerCase().includes(q));
+      document.getElementById('manageTotalStudentsCount').innerText = `O'quvchilar Boshqaruvi (${list.length} nafar)`;
+
+      list.forEach((st, idx) => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-semibold text-slate-400">${idx + 1}</td>
+            <td class="p-3 font-bold text-slate-800">${st.name}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">${st.class}</span></td>
+            <td class="p-3 text-right">
+              <button onclick="deleteStudent('${st.id}')" class="text-rose-600 hover:text-rose-800 p-1 font-bold"><i class="fa-solid fa-trash-can"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function openAddStudentModal() {
+      document.getElementById('addStudentModal').classList.remove('hidden');
+    }
+    function closeAddStudentModal() {
+      document.getElementById('addStudentModal').classList.add('hidden');
+    }
+    function saveNewStudent() {
+      const name = document.getElementById('newStudentName').value.trim();
+      const cls = document.getElementById('newStudentClass').value;
+      if (!name) return alert("F.I.SH kiriting!");
+
+      const id = "st_" + Date.now();
+      db.ref(`students/${id}`).set({ id, name, class: cls }, () => {
+        closeAddStudentModal();
+        document.getElementById('newStudentName').value = '';
+      });
+    }
+    function deleteStudent(id) {
+      if (confirm("Haqiqatan ham bu o'quvchini o'chirmoqchimisiz?")) {
+        db.ref(`students/${id}`).remove();
+      }
+    }
+
+    // 10. XODIMLAR BO'LIMI (CREATOR KO'RINMAYDI)
+    function renderTeachersManageTable() {
+      const tbody = document.getElementById('teachersManageTableBody');
+      tbody.innerHTML = '';
+
+      // Creator hech qayerda ro'yxatda ko'rinmasligi kerak
+      const list = Object.values(cachedTeachers).filter(t => t.role !== 'creator');
+
+      list.forEach((t, idx) => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-semibold text-slate-400">${idx + 1}</td>
+            <td class="p-3 font-bold text-slate-800">${t.name}</td>
+            <td class="p-3 font-semibold">${t.class || '<span class="text-slate-400">Yo\'q (Fan o\'qituvchisi)</span>'}</td>
+            <td class="p-3 font-mono text-slate-600">${t.login}</td>
+            <td class="p-3 font-mono text-slate-600">${t.pass}</td>
+            <td class="p-3 text-right">
+              <button onclick="openChangePasswordModal('${t.id}', '${t.name}')" class="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-lg font-bold hover:bg-blue-100">Parolni o'zgartirish</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    let targetTeacherId = null;
+    function openChangePasswordModal(id, name) {
+      targetTeacherId = id;
+      document.getElementById('changePasswordTeacherName').innerText = name;
+      document.getElementById('newTeacherPasswordInput').value = '';
+      document.getElementById('changePasswordModal').classList.remove('hidden');
+    }
+    function closeChangePasswordModal() {
+      document.getElementById('changePasswordModal').classList.add('hidden');
+      targetTeacherId = null;
+    }
+    function saveNewTeacherPassword() {
+      const p = document.getElementById('newTeacherPasswordInput').value.trim();
+      if (!p) return alert("Parol bo'sh bo'lishi mumkin emas!");
+      db.ref(`teachers/${targetTeacherId}/pass`).set(p, () => {
+        closeChangePasswordModal();
+        alert("Parol muvaffaqiyatli yangilandi!");
+      });
+    }
+  </script>
+</body>
+</html>
