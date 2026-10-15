@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Maktab Davomat Platformasi</title>
   
-  <!-- PWA & Mobil Ilova Meta Teglari (iOS va Android uchun to'liq ekran rejimi) -->
+  <!-- PWA & Mobil Ilova Meta Teglari -->
   <meta name="theme-color" content="#2563eb">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,7 +27,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   
   <style>
-    /* Telefonlarda silliq surish va boshqaruv */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .table-container { -webkit-overflow-scrolling: touch; }
@@ -36,7 +35,6 @@
     .badge-absent { background-color: #fee2e2; color: #b91c1c; }
     .badge-late { background-color: #fef3c7; color: #b45309; }
     .badge-excused { background-color: #e0e7ff; color: #4338ca; }
-    .badge-permitted { background-color: #f3e8ff; color: #7e22ce; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen antialiased select-none">
@@ -63,7 +61,6 @@
         </div>
         <div id="loginError" class="text-rose-500 text-xs hidden font-bold text-center">Login yoki parol noto'g'ri!</div>
 
-        <!-- 5 marta bosilganda Creator modali ochiladi -->
         <button type="submit" id="loginSubmitBtn" onclick="onLoginBtnClick(event)" class="w-full py-3.5 bg-blue-600 active:bg-blue-700 sm:hover:bg-blue-700 text-white font-black rounded-xl shadow-md transition duration-200 text-sm">
           Kirish
         </button>
@@ -79,7 +76,7 @@
     </div>
   </div>
 
-  <!-- Ilovani o'rnatish bo'yicha ko'rsatma modali (iOS va avto-o'rnatish chiqmagan brauzerlar uchun) -->
+  <!-- Ilovani o'rnatish bo'yicha ko'rsatma modali -->
   <div id="installGuideModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
     <div class="bg-white rounded-3xl max-w-xs sm:max-w-sm w-full p-6 shadow-2xl">
       <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl">
@@ -87,9 +84,7 @@
       </div>
       <h3 class="text-base font-bold text-slate-800 text-center mb-1">Telefonga o'rnatish</h3>
       <p class="text-xs text-slate-400 text-center mb-4">Keyingi safar 1 bosishda kirish uchun asosiy ekranga qo'shing:</p>
-      
       <div id="installStepsContent" class="space-y-3 text-xs text-slate-700 font-medium mb-5 bg-slate-50 p-3.5 rounded-2xl border border-slate-100"></div>
-
       <button onclick="closeInstallGuideModal()" class="w-full py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold active:bg-blue-700">Tushunarli</button>
     </div>
   </div>
@@ -146,6 +141,60 @@
     </div>
   </div>
 
+  <!-- Qo'ng'iroq vaqtlari sozlamasi modali (Admin uchun) -->
+  <div id="bellTimesModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="text-base font-bold text-slate-800">Qo'ng'iroqlar Jadvali (Avto-soat)</h3>
+          <p class="text-[11px] text-slate-400">O'qituvchi kirganda joriy dars soati shu vaqtga qarab avtomatik tanlanadi</p>
+        </div>
+      </div>
+      <div id="bellTimesInputsContainer" class="space-y-2 mb-5"></div>
+      <div class="flex gap-2">
+        <button onclick="closeBellTimesModal()" class="w-1/2 py-2.5 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">Bekor qilish</button>
+        <button onclick="saveBellTimes()" class="w-1/2 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Xodim Qo'shish / Tahrirlash Modali (Admin uchun) -->
+  <div id="teacherFormModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-xs sm:max-w-sm w-full p-6 shadow-2xl">
+      <h3 id="teacherFormModalTitle" class="text-base font-bold text-slate-800 mb-3">Xodim Ma'lumotlari</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">F.I.SH</label>
+          <input type="text" id="formTeacherName" placeholder="Familiya Ism Sharif" class="w-full border rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">Lavozimi (Roli)</label>
+          <select id="formTeacherRole" onchange="onTeacherRoleSelectChange()" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+            <option value="subject">Fan o'qituvchisi</option>
+            <option value="class_leader">Sinf rahbari</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <div id="formTeacherClassWrapper" class="hidden">
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">Rahbarlik sinfi</label>
+          <select id="formTeacherClass" class="w-full border rounded-xl px-3 py-2 text-xs font-bold"></select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">Login</label>
+          <input type="text" id="formTeacherLogin" placeholder="login" class="w-full border rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">Parol</label>
+          <input type="text" id="formTeacherPass" placeholder="parol" class="w-full border rounded-xl px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+      </div>
+      <div class="flex gap-2 mt-5">
+        <button onclick="closeTeacherFormModal()" class="w-1/2 py-2.5 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">Bekor qilish</button>
+        <button onclick="saveTeacherForm()" class="w-1/2 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold">Saqlash</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== 2. ASOSIY DASHBOARD ==================== -->
   <div id="appScreen" class="hidden min-h-screen flex flex-col">
     <!-- Moslashuvchan Header -->
@@ -176,7 +225,7 @@
           </div>
         </div>
 
-        <!-- Gorizontal Tab Navigatsiyasi (Telefonda silliq suriladi) -->
+        <!-- Gorizontal Tab Navigatsiyasi -->
         <div class="overflow-x-auto no-scrollbar py-2 -mt-1">
           <div id="navTabs" class="flex gap-1.5 min-w-max p-1 bg-slate-100 rounded-xl"></div>
         </div>
@@ -185,8 +234,32 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 space-y-5">
       
-      <!-- TAB 1: ADMIN VA CREATOR TAHLILI -->
+      <!-- ==================== TAB 1: ADMIN VA CREATOR TAHLILI ==================== -->
       <section id="tabAnalytics" class="space-y-4 sm:space-y-6 hidden">
+        
+        <!-- 1 & 2 FUNKSIYA: Arxiv Kalendar + Haftalik/Oylik Excel Hisobot Paneli -->
+        <div class="bg-white p-4 sm:p-5 rounded-3xl border border-slate-100 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <div class="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-xl flex-1 sm:flex-none">
+              <i class="fa-regular fa-calendar-days text-blue-600 text-sm"></i>
+              <span class="text-xs font-bold text-slate-500">Sana:</span>
+              <input type="date" id="adminDatePicker" onchange="onAdminDateChange(this.value)" class="bg-transparent text-xs font-black text-slate-800 focus:outline-none">
+            </div>
+            <button onclick="resetToTodayDate()" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-xs font-bold transition">
+              Bugun
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button id="btnWeeklyExcel" onclick="exportPeriodExcel(7, 'Haftalik')" class="flex-1 sm:flex-none px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
+              <i class="fa-solid fa-file-excel"></i> Haftalik Excel (7 kun)
+            </button>
+            <button id="btnMonthlyExcel" onclick="exportPeriodExcel(30, 'Oylik')" class="flex-1 sm:flex-none px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
+              <i class="fa-solid fa-file-excel"></i> Oylik Excel (30 kun)
+            </button>
+          </div>
+        </div>
+
         <!-- 4 ta Katta Kartochka -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
@@ -198,14 +271,14 @@
           </div>
           <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
             <div>
-              <p class="text-[10px] sm:text-xs uppercase font-bold text-slate-400">Bugun Bor</p>
+              <p class="text-[10px] sm:text-xs uppercase font-bold text-slate-400">Tanlangan Kunda Bor</p>
               <h2 id="statTotalPresent" class="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5">0 ta</h2>
             </div>
             <div class="w-9 h-9 sm:w-12 sm:h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-sm sm:text-xl"><i class="fa-solid fa-user-check"></i></div>
           </div>
           <div class="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-xs flex items-center justify-between">
             <div>
-              <p class="text-[10px] sm:text-xs uppercase font-bold text-slate-400">Bugun Yo'q</p>
+              <p class="text-[10px] sm:text-xs uppercase font-bold text-slate-400">Tanlangan Kunda Yo'q</p>
               <h2 id="statTotalAbsent" class="text-xl sm:text-2xl font-black text-rose-600 mt-0.5">0 ta</h2>
             </div>
             <div class="w-9 h-9 sm:w-12 sm:h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-sm sm:text-xl"><i class="fa-solid fa-user-xmark"></i></div>
@@ -229,10 +302,24 @@
               <p class="text-[11px] text-slate-400" id="currentDateDisplay"></p>
             </div>
             <button onclick="exportClassesDailyExcel()" class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition">
-              <i class="fa-solid fa-file-excel"></i> Sinflar Tahlili (Excel)
+              <i class="fa-solid fa-file-excel"></i> Kunlik Sinflar Tahlili (Excel)
             </button>
           </div>
           <div id="classCardsGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 sm:gap-3"></div>
+        </div>
+
+        <!-- 4-FUNKSIYA: O'qituvchilar Davomat Nazorati (Admin uchun) -->
+        <div class="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-xs">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                <i class="fa-solid fa-user-check text-indigo-600"></i> O'qituvchilar Davomat Nazorati
+              </h3>
+              <p class="text-[11px] text-slate-400">Yashil = davomat kiritilgan | Sariq = hali davomat kiritilmagan</p>
+            </div>
+            <div id="teacherControlStatsBadge" class="text-xs font-bold px-3 py-1 rounded-xl bg-slate-100 text-slate-700"></div>
+          </div>
+          <div id="teacherControlGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-80 overflow-y-auto pr-1"></div>
         </div>
 
         <!-- Grafiklar -->
@@ -293,17 +380,76 @@
         </div>
       </section>
 
-      <!-- TAB 2: DAVOMAT OLISH (O'QITUVCHI UCHUN DARS JADVALIGA BOG'LANGAN) -->
+      <!-- ==================== TAB 6: INTERAKTIV DARS JADVALI (FAQAT ADMIN UCHUN) ==================== -->
+      <section id="tabScheduleManage" class="space-y-4 sm:space-y-6 hidden">
+        <div class="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base sm:text-xl font-black text-slate-800">Interaktiv Dars Jadvali Boshqaruvi</h2>
+            <p id="scheduleStatusText" class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Katakchani bosib o'qituvchining dars sinfini darhol o'zgartirishingiz mumkin</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <button onclick="openBellTimesModal()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i class="fa-regular fa-clock"></i> Qo'ng'iroq vaqtlari
+            </button>
+            <button onclick="downloadScheduleTemplate()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-download"></i> Shablon (Excel)
+            </button>
+            <input type="file" id="scheduleExcelInput" accept=".xlsx, .xls" class="hidden" onchange="handleScheduleUpload(event)">
+            <button onclick="document.getElementById('scheduleExcelInput').click()" class="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-file-excel"></i> Exceldan yuklash
+            </button>
+          </div>
+        </div>
+
+        <!-- Hafta kunlari tanlovi va qidiruv -->
+        <div class="bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-100 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div id="scheduleDayTabs" class="flex gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto">
+            <button onclick="selectScheduleEditorDay(1)" data-day="1" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">Dushanba</button>
+            <button onclick="selectScheduleEditorDay(2)" data-day="2" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">Seshanba</button>
+            <button onclick="selectScheduleEditorDay(3)" data-day="3" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">Chorshanba</button>
+            <button onclick="selectScheduleEditorDay(4)" data-day="4" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">Payshanba</button>
+            <button onclick="selectScheduleEditorDay(5)" data-day="5" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">Juma</button>
+            <button onclick="selectScheduleEditorDay(6)" data-day="6" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">Shanba</button>
+          </div>
+          <input type="text" id="searchScheduleTeacherInput" oninput="renderInteractiveScheduleTable()" placeholder="O'qituvchini qidiring..." class="w-full sm:w-64 px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+
+        <!-- Interaktiv Jadval (1-8 soatlar) -->
+        <div class="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto table-container">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b text-[11px]">
+                <tr>
+                  <th class="p-3 w-10 text-center">№</th>
+                  <th class="p-3 min-w-[200px]">O'qituvchi F.I.SH</th>
+                  <th class="p-2 text-center">1-soat</th>
+                  <th class="p-2 text-center">2-soat</th>
+                  <th class="p-2 text-center">3-soat</th>
+                  <th class="p-2 text-center">4-soat</th>
+                  <th class="p-2 text-center">5-soat</th>
+                  <th class="p-2 text-center">6-soat</th>
+                  <th class="p-2 text-center">7-soat</th>
+                  <th class="p-2 text-center">8-soat</th>
+                </tr>
+              </thead>
+              <tbody id="interactiveScheduleTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 2: DAVOMAT OLISH (O'QITUVCHI UCHUN) ==================== -->
       <section id="tabTakeAttendance" class="space-y-4 sm:space-y-6 hidden">
         <div class="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-xs flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <h2 class="text-base sm:text-xl font-black text-slate-800">Dars Davomati Olish</h2>
               <span id="teacherDayBadge" class="px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[11px] font-bold"></span>
+              <span id="teacherAutoTimeBadge" class="px-2.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg text-[11px] font-bold hidden"></span>
             </div>
             <p id="teacherScheduleHint" class="text-[11px] sm:text-xs text-slate-400 mt-0.5">O'quvchilar sukut bo'yicha "Bor" holatida bo'ladi</p>
           </div>
-          <div class="flex items-center gap-2 w-full sm:w-auto">
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <select id="teacherSelectLessonHour" onchange="onLessonHourChange()" class="flex-1 sm:flex-none bg-slate-100 border-0 text-xs font-bold px-3 py-2.5 rounded-xl">
               <option value="1">1 - Dars</option>
               <option value="2">2 - Dars</option>
@@ -315,6 +461,9 @@
               <option value="8">8 - Dars</option>
             </select>
             <select id="teacherSelectClass" onchange="renderTeacherAttendanceTable()" class="flex-1 sm:flex-none bg-slate-100 border-0 text-xs font-bold px-3 py-2.5 rounded-xl"></select>
+            <button id="confirmLessonSubmittedBtn" onclick="confirmClassLessonAttendance()" class="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 active:bg-emerald-700 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
+              <i class="fa-solid fa-check-double"></i> <span>Davomatni tasdiqlash</span>
+            </button>
           </div>
         </div>
 
@@ -335,14 +484,13 @@
         </div>
       </section>
 
-      <!-- TAB 3: SINF RAHBARI O'Z SINFI BOSHQARUVI & TAHLILI -->
+      <!-- ==================== TAB 3: SINF RAHBARI O'Z SINFI BOSHQARUVI & TAHLILI ==================== -->
       <section id="tabClassLeader" class="space-y-4 sm:space-y-6 hidden">
         <div class="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-xs">
           <h2 class="text-base sm:text-xl font-black text-slate-800" id="classLeaderHeaderTitle">Mening Sinfim</h2>
           <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Ertalabki davomat va sababli holatlarni belgilang (Kasal, Olimpiada yoki Yo'q)</p>
         </div>
 
-        <!-- Sabablar belgilash ro'yxati -->
         <div class="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
           <div class="p-3.5 sm:p-4 bg-slate-50 border-b text-xs font-bold text-slate-600 flex items-center gap-2">
             <i class="fa-solid fa-user-pen text-blue-600"></i> Ertalabki Davomat va Sabablar
@@ -362,7 +510,6 @@
           </div>
         </div>
 
-        <!-- Sinfning Darsbay Tahlili -->
         <div class="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
           <div class="p-3.5 sm:p-4 bg-slate-50 border-b flex items-center justify-between">
             <h3 class="font-bold text-slate-800 text-xs flex items-center gap-2">
@@ -395,7 +542,7 @@
         </div>
       </section>
 
-      <!-- TAB 4: O'QUVCHILAR RO'YXATI -->
+      <!-- ==================== TAB 4: O'QUVCHILAR RO'YXATI (ADMIN) ==================== -->
       <section id="tabStudentsManage" class="space-y-4 sm:space-y-6 hidden">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -425,22 +572,16 @@
         </div>
       </section>
 
-      <!-- TAB 5: XODIMLAR BO'LIMI -->
+      <!-- ==================== TAB 5: XODIMLAR BO'LIMI (ADMIN TO'LIQ CRUD) ==================== -->
       <section id="tabTeachersManage" class="space-y-4 sm:space-y-6 hidden">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 class="text-base sm:text-xl font-black text-slate-800">Xodimlar Boshqaruvi</h2>
-            <p id="scheduleStatusText" class="text-[11px] sm:text-xs text-slate-400">Login, parol va dars jadvali boshqaruvi</p>
+            <p class="text-[11px] sm:text-xs text-slate-400">O'qituvchi qo'shish, tahrirlash, login-parol va sinf rahbarligi</p>
           </div>
-          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button onclick="downloadScheduleTemplate()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition">
-              <i class="fa-solid fa-download"></i> Shablon (Excel)
-            </button>
-            <input type="file" id="scheduleExcelInput" accept=".xlsx, .xls" class="hidden" onchange="handleScheduleUpload(event)">
-            <button onclick="document.getElementById('scheduleExcelInput').click()" class="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition">
-              <i class="fa-solid fa-file-excel"></i> Dars soatlarini yuklash (Excel)
-            </button>
-          </div>
+          <button onclick="openTeacherFormModal(null)" class="w-full sm:w-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition">
+            <i class="fa-solid fa-user-plus"></i> Yangi Xodim Qo'shish
+          </button>
         </div>
 
         <div class="bg-white rounded-3xl border border-slate-100 shadow-xs overflow-hidden">
@@ -450,16 +591,46 @@
                 <tr>
                   <th class="p-3 w-10 text-center">№</th>
                   <th class="p-3">F.I.SH</th>
-                  <th class="p-3">Sinfi</th>
+                  <th class="p-3">Sinfi / Roli</th>
                   <th class="p-3">Bugungi darslari</th>
                   <th class="p-3">Login</th>
                   <th class="p-3">Parol</th>
-                  <th class="p-3 text-right">Amal</th>
+                  <th class="p-3 text-right">Amallar</th>
                 </tr>
               </thead>
               <tbody id="teachersManageTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 7: O'QITUVCHI PROFIL BO'LIMI ==================== -->
+      <section id="tabTeacherProfile" class="space-y-4 sm:space-y-6 hidden">
+        <div class="max-w-md mx-auto bg-white rounded-3xl border border-slate-100 shadow-xs p-5 sm:p-7">
+          <div class="flex items-center gap-3.5 mb-6 pb-4 border-b border-slate-100">
+            <div class="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl font-black">
+              <i class="fa-solid fa-user-gear"></i>
+            </div>
+            <div class="min-w-0">
+              <h2 id="profileTeacherName" class="text-sm sm:text-base font-black text-slate-800 truncate"></h2>
+              <p id="profileTeacherRole" class="text-xs text-slate-400 font-semibold"></p>
+            </div>
+          </div>
+
+          <form onsubmit="saveTeacherOwnProfile(event)" class="space-y-4">
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Shaxsiy Login</label>
+              <input type="text" id="profileLoginInput" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Shaxsiy Parol</label>
+              <input type="text" id="profilePassInput" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div id="profileSaveMsg" class="text-xs font-bold text-center hidden"></div>
+            <button type="submit" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black rounded-xl shadow-sm transition text-xs sm:text-sm">
+              <i class="fa-solid fa-floppy-disk mr-1.5"></i> O'zgarishlarni Saqlash
+            </button>
+          </form>
         </div>
       </section>
 
@@ -494,38 +665,22 @@
     </div>
   </div>
 
-  <!-- Parolni almashtirish modali -->
-  <div id="changePasswordModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-3xl max-w-xs w-full p-6 shadow-2xl">
-      <h3 class="text-base font-bold text-slate-800 mb-1">Parolni O'zgartirish</h3>
-      <p id="changePasswordTeacherName" class="text-xs text-slate-400 mb-3 font-semibold truncate"></p>
-      <input type="text" id="newTeacherPasswordInput" placeholder="Yangi parol" class="w-full border rounded-xl px-3 py-2.5 text-xs mb-4 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-      <div class="flex gap-2">
-        <button onclick="closeChangePasswordModal()" class="w-1/2 py-2 bg-slate-100 rounded-xl text-xs font-bold">Bekor qilish</button>
-        <button onclick="saveNewTeacherPassword()" class="w-1/2 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">Saqlash</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ==================== JAVASCRIPT VA FIREBASE MANTIQI ==================== -->
   <script>
     // ==================== PWA VA TELEFONGA O'RNATISH TIZIMI ====================
     let deferredInstallPrompt = null;
 
     function setupSingleFilePWA() {
-      // 1. Canvas yordamida chiroyli 512x512 ilova ikonkasini avtomatik chizish
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 512;
       const ctx = canvas.getContext('2d');
 
-      // Ko'k fon
       ctx.fillStyle = '#2563eb';
       ctx.beginPath();
       ctx.roundRect(0, 0, 512, 512, 115);
       ctx.fill();
 
-      // Oq tasdiq belgisi va "DAVOMAT" yozuvi
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 210px sans-serif';
       ctx.textAlign = 'center';
@@ -539,7 +694,6 @@
       document.getElementById('appleTouchIcon').href = iconDataUrl;
       document.getElementById('appFavicon').href = iconDataUrl;
 
-      // 2. Web App Manifestni dinamik ulash (alohida fayl kerak emas)
       const manifest = {
         name: "Maktab Davomat Platformasi",
         short_name: "Davomat",
@@ -560,11 +714,8 @@
       manifestLink.href = URL.createObjectURL(manifestBlob);
       document.head.appendChild(manifestLink);
 
-      // 3. Agar foydalanuvchi allaqachon o'rnatilgan ilova ichidan kirgan bo'lsa, o'rnatish tugmalarini yashirish
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-      if (isStandalone) {
-        hideInstallButtons();
-      }
+      if (isStandalone) hideInstallButtons();
     }
 
     function hideInstallButtons() {
@@ -585,19 +736,15 @@
     });
 
     function triggerInstallApp() {
-      // Agar Android Chrome avtomatik o'rnatish oynasini tayyorlab qo'ygan bo'lsa — darhol chiqaramiz
       if (deferredInstallPrompt) {
         deferredInstallPrompt.prompt();
         deferredInstallPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            hideInstallButtons();
-          }
+          if (choiceResult.outcome === 'accepted') hideInstallButtons();
           deferredInstallPrompt = null;
         });
         return;
       }
 
-      // Aks holda (iPhone iOS yoki oddiy brauzerda) aniq 2 qadamli vizual ko'rsatma chiqaramiz
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       const stepsBox = document.getElementById('installStepsContent');
 
@@ -624,7 +771,6 @@
           </div>
         `;
       }
-
       document.getElementById('installGuideModal').classList.remove('hidden');
     }
 
@@ -637,6 +783,17 @@
     // ==================== ASOSIY MA'LUMOTLAR VA FIREBASE ====================
     const ORDERED_CLASSES = ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A", "11-B"];
     const WEEKDAYS_UZ = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
+
+    const DEFAULT_BELL_TIMES = {
+      "1": { start: "08:30", end: "09:15" },
+      "2": { start: "09:20", end: "10:05" },
+      "3": { start: "10:10", end: "10:55" },
+      "4": { start: "11:00", end: "11:45" },
+      "5": { start: "12:00", end: "12:45" },
+      "6": { start: "12:50", end: "13:35" },
+      "7": { start: "13:40", end: "14:25" },
+      "8": { start: "14:30", end: "15:15" }
+    };
 
     const firebaseConfig = {
       apiKey: "AIzaSyDdCFG_-uKUEBxJUoL0rPe9Vd0eB-G37pM",
@@ -995,17 +1152,22 @@
     let clickCount = 0;
     let clickTimer = null;
 
-    function getLocalDayStr() {
-      const d = new Date();
+    function formatDateLocal(d) {
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
-    let currentDayStr = getLocalDayStr();
 
-    function getCurrentDayIndex() {
-      const day = new Date().getDay();
+    let todayDayStr = formatDateLocal(new Date());
+    let currentDayStr = todayDayStr; // Admin kalendardan o'zgartirishi mumkin
+    let activeAttendanceRef = null;
+    let selectedScheduleEditorDay = getDayIndexFromDateStr(todayDayStr);
+
+    function getDayIndexFromDateStr(dateStr) {
+      const parts = dateStr.split('-');
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const day = d.getDay();
       return day === 0 ? 1 : day;
     }
 
@@ -1013,6 +1175,7 @@
     let cachedStudents = {};
     let cachedAttendance = {};
     let cachedSchedules = {};
+    let cachedBellTimes = JSON.parse(JSON.stringify(DEFAULT_BELL_TIMES));
 
     function preloadLocalFallbacks() {
       const savedTeachers = localStorage.getItem('school_cached_teachers');
@@ -1033,15 +1196,17 @@
       }
 
       const savedSchedules = localStorage.getItem('school_cached_schedules');
-      if (savedSchedules) {
-        cachedSchedules = JSON.parse(savedSchedules);
-      }
+      if (savedSchedules) cachedSchedules = JSON.parse(savedSchedules);
+
+      const savedBells = localStorage.getItem('school_cached_bells');
+      if (savedBells) cachedBellTimes = JSON.parse(savedBells);
     }
     preloadLocalFallbacks();
 
     let ratingChart = null;
     let dynamicChart = null;
     let targetReasonStudentId = null;
+    let editingTeacherId = null;
 
     function sortStudentsCanonical(studentList) {
       return [...studentList].sort((a, b) => {
@@ -1055,13 +1220,20 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('currentDateDisplay').innerText = currentDayStr + " holatiga";
+      const dp = document.getElementById('adminDatePicker');
+      if (dp) dp.value = currentDayStr;
+      updateDateDisplayLabel();
       initDatabaseDefaults();
 
       db.ref('teachers').on('value', snap => {
         if (snap.exists()) {
           cachedTeachers = snap.val();
           localStorage.setItem('school_cached_teachers', JSON.stringify(cachedTeachers));
+          // Agar joriy foydalanuvchi ma'lumoti o'zgargan bo'lsa yangilab olamiz
+          if (currentUser && currentUser.id !== 'creator' && cachedTeachers[currentUser.id]) {
+            currentUser = cachedTeachers[currentUser.id];
+            localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
+          }
           if (currentUser) renderViews();
         }
       });
@@ -1074,10 +1246,7 @@
         }
       });
 
-      db.ref(`attendance/${currentDayStr}`).on('value', snap => {
-        cachedAttendance = snap.val() || {};
-        if (currentUser) renderViews();
-      });
+      subscribeToAttendanceDate(currentDayStr);
 
       db.ref('schedules').on('value', snap => {
         if (snap.exists()) {
@@ -1086,7 +1255,7 @@
           localStorage.setItem('school_cached_schedules', JSON.stringify(cachedSchedules));
           const statusEl = document.getElementById('scheduleStatusText');
           if (statusEl && val.fileName) {
-            statusEl.innerText = `Yuklangan jadval: ${val.fileName}`;
+            statusEl.innerText = `Yuklangan fayl: ${val.fileName} (Jadvaldan istalgan soatni bevosita o'zgartirishingiz mumkin)`;
           }
         } else {
           cachedSchedules = {};
@@ -1098,12 +1267,48 @@
         }
       });
 
+      db.ref('settings/bellTimes').on('value', snap => {
+        if (snap.exists()) {
+          cachedBellTimes = snap.val();
+          localStorage.setItem('school_cached_bells', JSON.stringify(cachedBellTimes));
+        }
+      });
+
       const savedUser = localStorage.getItem('school_attendance_user');
       if (savedUser) {
         currentUser = JSON.parse(savedUser);
         showApp();
       }
     });
+
+    function subscribeToAttendanceDate(dateStr) {
+      if (activeAttendanceRef) activeAttendanceRef.off();
+      currentDayStr = dateStr;
+      updateDateDisplayLabel();
+      activeAttendanceRef = db.ref(`attendance/${currentDayStr}`);
+      activeAttendanceRef.on('value', snap => {
+        cachedAttendance = snap.val() || {};
+        if (currentUser) renderViews();
+      });
+    }
+
+    function updateDateDisplayLabel() {
+      const dayIdx = getDayIndexFromDateStr(currentDayStr);
+      const el = document.getElementById('currentDateDisplay');
+      if (el) el.innerText = `${currentDayStr} (${WEEKDAYS_UZ[dayIdx]}) holatiga`;
+    }
+
+    function onAdminDateChange(newDate) {
+      if (!newDate) return;
+      subscribeToAttendanceDate(newDate);
+    }
+
+    function resetToTodayDate() {
+      todayDayStr = formatDateLocal(new Date());
+      const dp = document.getElementById('adminDatePicker');
+      if (dp) dp.value = todayDayStr;
+      subscribeToAttendanceDate(todayDayStr);
+    }
 
     function initDatabaseDefaults() {
       db.ref('teachers').once('value', snap => {
@@ -1216,6 +1421,12 @@
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('appScreen').classList.remove('hidden');
 
+      // O'qituvchilar doim bugungi sana bilan ishlaydi
+      if (currentUser.role !== 'admin' && currentUser.role !== 'creator') {
+        todayDayStr = formatDateLocal(new Date());
+        if (currentDayStr !== todayDayStr) subscribeToAttendanceDate(todayDayStr);
+      }
+
       const roleBadge = document.getElementById('userRoleBadge');
       const tabs = document.getElementById('navTabs');
       tabs.innerHTML = '';
@@ -1224,36 +1435,44 @@
         roleBadge.innerText = "Creator Rejimi (To'liq Boshqaruv)";
         tabs.innerHTML = `
           <button onclick="switchTab('tabAnalytics')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white shadow-xs text-blue-600 whitespace-nowrap">Umumiy Tahlil</button>
+          <button onclick="switchTab('tabScheduleManage')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">Dars Jadvali</button>
           <button onclick="switchTab('tabTakeAttendance')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">Davomat Olish</button>
           <button onclick="switchTab('tabStudentsManage')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">O'quvchilar</button>
           <button onclick="switchTab('tabTeachersManage')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">Xodimlar</button>
         `;
         populateAdminDropdowns();
         syncTeacherLessonAndClass(true);
+        selectScheduleEditorDay(selectedScheduleEditorDay);
         switchTab('tabAnalytics');
       } else if (currentUser.role === 'admin') {
         roleBadge.innerText = "Maktab Administratori";
         tabs.innerHTML = `
           <button onclick="switchTab('tabAnalytics')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white shadow-xs text-blue-600 whitespace-nowrap">Umumiy Tahlil</button>
+          <button onclick="switchTab('tabScheduleManage')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">Dars Jadvali</button>
           <button onclick="switchTab('tabStudentsManage')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">O'quvchilar</button>
           <button onclick="switchTab('tabTeachersManage')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">Xodimlar</button>
         `;
         populateAdminDropdowns();
+        selectScheduleEditorDay(selectedScheduleEditorDay);
         switchTab('tabAnalytics');
       } else if (currentUser.role === 'class_leader') {
         roleBadge.innerText = `${currentUser.name} (${currentUser.class} rahbari)`;
         tabs.innerHTML = `
           <button onclick="switchTab('tabTakeAttendance')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white shadow-xs text-blue-600 whitespace-nowrap">Dars Davomati</button>
           <button onclick="switchTab('tabClassLeader')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap">${currentUser.class} Tahlili</button>
+          <button onclick="switchTab('tabTeacherProfile')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap"><i class="fa-solid fa-user-gear mr-1"></i>Profil</button>
         `;
         syncTeacherLessonAndClass(true);
+        populateTeacherProfileTab();
         switchTab('tabTakeAttendance');
       } else {
         roleBadge.innerText = `${currentUser.name} (Fan O'qituvchisi)`;
         tabs.innerHTML = `
           <button onclick="switchTab('tabTakeAttendance')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white shadow-xs text-blue-600 whitespace-nowrap">Dars Davomati</button>
+          <button onclick="switchTab('tabTeacherProfile')" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-600 whitespace-nowrap"><i class="fa-solid fa-user-gear mr-1"></i>Profil</button>
         `;
         syncTeacherLessonAndClass(true);
+        populateTeacherProfileTab();
         switchTab('tabTakeAttendance');
       }
 
@@ -1261,8 +1480,9 @@
     }
 
     function switchTab(tabId) {
-      ['tabAnalytics', 'tabTakeAttendance', 'tabClassLeader', 'tabStudentsManage', 'tabTeachersManage'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
+      ['tabAnalytics', 'tabScheduleManage', 'tabTakeAttendance', 'tabClassLeader', 'tabStudentsManage', 'tabTeachersManage', 'tabTeacherProfile'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
       });
       document.getElementById(tabId).classList.remove('hidden');
 
@@ -1276,6 +1496,8 @@
       });
 
       if (tabId === 'tabAnalytics') renderCharts();
+      if (tabId === 'tabScheduleManage') renderInteractiveScheduleTable();
+      if (tabId === 'tabTeacherProfile') populateTeacherProfileTab();
     }
 
     function populateAdminDropdowns() {
@@ -1288,21 +1510,79 @@
       ORDERED_CLASSES.forEach(c => filterSel.innerHTML += `<option value="${c}">${c}</option>`);
     }
 
+    // ==================== 3-FUNKSIYA: QO'NG'IROQ VAQTLARI VA AVTO-SOAT ====================
+    function timeStrToMinutes(str) {
+      if (!str || !str.includes(':')) return 0;
+      const [h, m] = str.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function detectCurrentLessonHourByClock() {
+      const now = new Date();
+      const curMins = now.getHours() * 60 + now.getMinutes();
+
+      for (let h = 1; h <= 8; h++) {
+        const slot = cachedBellTimes[String(h)];
+        if (!slot) continue;
+        const startM = timeStrToMinutes(slot.start) - 5; // Dars boshlanishidan 5 daqiqa oldin ham shu soatni oladi
+        const endM = timeStrToMinutes(slot.end);
+        if (curMins >= startM && curMins <= endM) {
+          return String(h);
+        }
+      }
+      return null;
+    }
+
+    function openBellTimesModal() {
+      const container = document.getElementById('bellTimesInputsContainer');
+      container.innerHTML = '';
+      for (let h = 1; h <= 8; h++) {
+        const slot = cachedBellTimes[String(h)] || DEFAULT_BELL_TIMES[String(h)];
+        container.innerHTML += `
+          <div class="flex items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            <span class="text-xs font-bold text-slate-700 w-16">${h}-soat:</span>
+            <input type="time" id="bellStart_${h}" value="${slot.start}" class="border rounded-lg px-2.5 py-1.5 text-xs font-bold">
+            <span class="text-xs text-slate-400">dan</span>
+            <input type="time" id="bellEnd_${h}" value="${slot.end}" class="border rounded-lg px-2.5 py-1.5 text-xs font-bold">
+            <span class="text-xs text-slate-400">gacha</span>
+          </div>
+        `;
+      }
+      document.getElementById('bellTimesModal').classList.remove('hidden');
+    }
+
+    function closeBellTimesModal() {
+      document.getElementById('bellTimesModal').classList.add('hidden');
+    }
+
+    function saveBellTimes() {
+      const newBells = {};
+      for (let h = 1; h <= 8; h++) {
+        const s = document.getElementById(`bellStart_${h}`).value || DEFAULT_BELL_TIMES[String(h)].start;
+        const e = document.getElementById(`bellEnd_${h}`).value || DEFAULT_BELL_TIMES[String(h)].end;
+        newBells[String(h)] = { start: s, end: e };
+      }
+      db.ref('settings/bellTimes').set(newBells, () => {
+        closeBellTimesModal();
+        alert("Qo'ng'iroq vaqtlari saqlandi!");
+      });
+    }
+
     // ==================== DARS JADVALI BILAN AVTOMATIK BOG'LASH ====================
     function hasAnyScheduleLoaded() {
       return cachedSchedules && Object.keys(cachedSchedules).length > 0;
     }
 
-    function getTeacherTodaySchedule(teacherLogin) {
+    function getTeacherScheduleForDay(teacherLogin, dayIdx) {
       if (!teacherLogin || !cachedSchedules[teacherLogin]) return {};
-      const dayIdx = getCurrentDayIndex();
       return cachedSchedules[teacherLogin][dayIdx] || {};
     }
 
-    function syncTeacherLessonAndClass(autoPickFirstLesson = false) {
+    function syncTeacherLessonAndClass(autoPickByTime = false) {
       if (!currentUser) return;
-      const dayIdx = getCurrentDayIndex();
+      const dayIdx = getDayIndexFromDateStr(todayDayStr);
       const dayBadge = document.getElementById('teacherDayBadge');
+      const timeBadge = document.getElementById('teacherAutoTimeBadge');
       const hintEl = document.getElementById('teacherScheduleHint');
       const hourSel = document.getElementById('teacherSelectLessonHour');
       const classSel = document.getElementById('teacherSelectClass');
@@ -1318,10 +1598,19 @@
         return;
       }
 
-      if (hasAnyScheduleLoaded()) {
-        const todayMap = getTeacherTodaySchedule(currentUser.login);
+      const todayMap = getTeacherScheduleForDay(currentUser.login, dayIdx);
 
-        if (autoPickFirstLesson) {
+      // 3-FUNKSIYA: Qo'ng'iroq vaqti bo'yicha joriy dars soatini avtomatik aniqlash
+      if (autoPickByTime) {
+        const clockHour = detectCurrentLessonHourByClock();
+        if (clockHour && (!hasAnyScheduleLoaded() || todayMap[clockHour])) {
+          hourSel.value = clockHour;
+          if (timeBadge) {
+            const slot = cachedBellTimes[clockHour];
+            timeBadge.innerText = `Hozir ${clockHour}-soat (${slot.start}-${slot.end})`;
+            timeBadge.classList.remove('hidden');
+          }
+        } else if (hasAnyScheduleLoaded()) {
           for (let h = 1; h <= 8; h++) {
             if (todayMap[String(h)]) {
               hourSel.value = String(h);
@@ -1329,11 +1618,15 @@
             }
           }
         }
+      }
 
+      if (hasAnyScheduleLoaded()) {
         Array.from(hourSel.options).forEach(opt => {
           const h = opt.value;
           const assignedCls = todayMap[h];
-          opt.text = assignedCls ? `${h} - Dars (${assignedCls})` : `${h} - Dars (Bo'sh)`;
+          const slot = cachedBellTimes[h];
+          const timeLabel = slot ? ` [${slot.start}]` : '';
+          opt.text = assignedCls ? `${h}-Dars: ${assignedCls}${timeLabel}` : `${h}-Dars (Bo'sh)`;
         });
 
         const selectedHour = hourSel.value;
@@ -1352,7 +1645,9 @@
         }
       } else {
         Array.from(hourSel.options).forEach(opt => {
-          opt.text = `${opt.value} - Dars`;
+          const h = opt.value;
+          const slot = cachedBellTimes[h];
+          opt.text = slot ? `${h}-Dars (${slot.start})` : `${h}-Dars`;
         });
         classSel.innerHTML = '';
         ORDERED_CLASSES.forEach(c => {
@@ -1372,9 +1667,11 @@
       if (!currentUser) return;
       if (currentUser.role === 'admin' || currentUser.role === 'creator') {
         renderAdminAnalytics();
+        renderTeacherSubmissionMonitor();
         renderAdminAttendanceTable();
         renderStudentsManageTable();
         renderTeachersManageTable();
+        renderInteractiveScheduleTable();
       }
       if (currentUser.role === 'class_leader') {
         renderClassLeaderTable();
@@ -1444,6 +1741,66 @@
       });
 
       renderCharts(classMap);
+    }
+
+    // ==================== 4-FUNKSIYA: O'QITUVCHILAR DAVOMAT NAZORATI (ADMIN UCHUN) ====================
+    function isClassHourSubmitted(className, hourKey) {
+      const submittedMap = cachedAttendance['_SUBMITTED'] || {};
+      if (submittedMap[className] && submittedMap[className][hourKey]) return true;
+      // Yoki shu sinfdagi birorta o'quvchiga shu soatda davomat belgilangan bo'lsa ham topshirilgan hisoblanadi
+      const classStudents = Object.values(cachedStudents).filter(s => s.class === className);
+      return classStudents.some(st => cachedAttendance[st.id] && cachedAttendance[st.id][hourKey]);
+    }
+
+    function renderTeacherSubmissionMonitor() {
+      const grid = document.getElementById('teacherControlGrid');
+      const statsBadge = document.getElementById('teacherControlStatsBadge');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const dayIdx = getDayIndexFromDateStr(currentDayStr);
+      const teachers = Object.values(cachedTeachers).filter(t => t.role !== 'admin' && t.role !== 'creator');
+
+      let totalLessonsToday = 0;
+      let submittedLessonsToday = 0;
+      let cardsHtml = '';
+
+      teachers.forEach(t => {
+        const dayMap = getTeacherScheduleForDay(t.login, dayIdx);
+        const hours = Object.keys(dayMap).sort((a, b) => Number(a) - Number(b));
+        if (hours.length === 0) return;
+
+        let badges = '';
+        hours.forEach(h => {
+          const cls = dayMap[h];
+          if (!cls) return;
+          totalLessonsToday++;
+          const isDone = isClassHourSubmitted(cls, h);
+          if (isDone) submittedLessonsToday++;
+
+          badges += `
+            <span class="px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 ${isDone ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+              <i class="fa-solid ${isDone ? 'fa-circle-check' : 'fa-clock'}"></i>
+              ${h}-s: ${cls}
+            </span>
+          `;
+        });
+
+        cardsHtml += `
+          <div class="p-3 rounded-2xl border border-slate-100 bg-slate-50/70 flex flex-col justify-between gap-2">
+            <div class="font-bold text-xs text-slate-800 truncate">${t.name}</div>
+            <div class="flex flex-wrap gap-1.5">${badges}</div>
+          </div>
+        `;
+      });
+
+      if (!cardsHtml) {
+        grid.innerHTML = `<div class="col-span-full text-center py-6 text-xs text-slate-400 font-bold">Ushbu kunga dars jadvali kiritilmagan ("Dars Jadvali" bo'limidan belgilang).</div>`;
+        if (statsBadge) statsBadge.innerText = "Jadval yo'q";
+      } else {
+        grid.innerHTML = cardsHtml;
+        if (statsBadge) statsBadge.innerText = `Topshirildi: ${submittedLessonsToday} / ${totalLessonsToday} ta dars`;
+      }
     }
 
     function renderCharts(classMap) {
@@ -1579,9 +1936,11 @@
       const selectedClass = document.getElementById('teacherSelectClass').value;
       const lessonHour = document.getElementById('teacherSelectLessonHour').value;
       const tbody = document.getElementById('teacherAttendanceTableBody');
+      const confirmBtn = document.getElementById('confirmLessonSubmittedBtn');
       tbody.innerHTML = '';
 
       if (!selectedClass || selectedClass === 'NONE') {
+        if (confirmBtn) confirmBtn.classList.add('hidden');
         tbody.innerHTML = `
           <tr>
             <td colspan="4" class="p-8 text-center text-slate-400 font-bold text-xs sm:text-sm">
@@ -1591,6 +1950,18 @@
           </tr>
         `;
         return;
+      }
+
+      if (confirmBtn) {
+        confirmBtn.classList.remove('hidden');
+        const isDone = isClassHourSubmitted(selectedClass, lessonHour);
+        if (isDone) {
+          confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition";
+          confirmBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Tasdiqlangan (${selectedClass})</span>`;
+        } else {
+          confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 bg-emerald-600 active:bg-emerald-700 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition";
+          confirmBtn.innerHTML = `<i class="fa-solid fa-check-double"></i> <span>Davomatni tasdiqlash</span>`;
+        }
       }
 
       let students = Object.values(cachedStudents).filter(s => s.class === selectedClass);
@@ -1636,7 +2007,21 @@
     }
 
     function setAttendanceStatus(studentId, lessonKey, status) {
-      db.ref(`attendance/${currentDayStr}/${studentId}/${lessonKey}`).set(status);
+      const stObj = cachedStudents[studentId];
+      const updates = {};
+      updates[`${studentId}/${lessonKey}`] = status;
+      if (stObj && stObj.class) {
+        updates[`_SUBMITTED/${stObj.class}/${lessonKey}`] = currentUser ? currentUser.login : true;
+      }
+      db.ref(`attendance/${currentDayStr}`).update(updates);
+    }
+
+    // Agar sinfda hamma o'quvchi "Bor" bo'lsa, o'qituvchi bitta bosish bilan davomat olganini tasdiqlaydi
+    function confirmClassLessonAttendance() {
+      const selectedClass = document.getElementById('teacherSelectClass').value;
+      const lessonHour = document.getElementById('teacherSelectLessonHour').value;
+      if (!selectedClass || selectedClass === 'NONE') return;
+      db.ref(`attendance/${currentDayStr}/_SUBMITTED/${selectedClass}/${lessonHour}`).set(currentUser ? currentUser.login : true);
     }
 
     function renderClassLeaderTable() {
@@ -1838,55 +2223,242 @@
       }
     }
 
+    // ==================== 5-FUNKSIYA: XODIMLAR TO'LIQ BOSHQARUVI (ADMIN CRUD) ====================
     function renderTeachersManageTable() {
       const tbody = document.getElementById('teachersManageTableBody');
+      if (!tbody) return;
       tbody.innerHTML = '';
 
       const list = Object.values(cachedTeachers).filter(t => t.role !== 'creator');
-      const dayIdx = getCurrentDayIndex();
+      const dayIdx = getDayIndexFromDateStr(currentDayStr);
 
       list.forEach((t, idx) => {
-        const todayMap = (cachedSchedules[t.login] && cachedSchedules[t.login][dayIdx]) ? cachedSchedules[t.login][dayIdx] : {};
+        const todayMap = getTeacherScheduleForDay(t.login, dayIdx);
         const lessonBadges = Object.entries(todayMap)
           .sort((a, b) => Number(a[0]) - Number(b[0]))
           .map(([h, cls]) => `<span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold">${h}-s: ${cls}</span>`)
           .join(' ');
 
+        let roleBadge = `<span class="text-slate-400">Fan o'qituvchisi</span>`;
+        if (t.role === 'admin') roleBadge = `<span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md text-[11px] font-bold">Admin</span>`;
+        else if (t.role === 'class_leader' && t.class) roleBadge = `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-[11px] font-bold">${t.class} rahbari</span>`;
+
         tbody.innerHTML += `
           <tr class="hover:bg-slate-50 transition">
             <td class="p-3 font-bold text-slate-400 text-center">${idx + 1}</td>
             <td class="p-3 font-bold text-slate-800">${t.name}</td>
-            <td class="p-3 font-bold">${t.class || '<span class="text-slate-400">Fan o\'qituvchisi</span>'}</td>
-            <td class="p-3">${lessonBadges || '<span class="text-slate-300 text-[11px]">Jadval kiritilmagan</span>'}</td>
-            <td class="p-3 font-mono text-slate-600">${t.login}</td>
+            <td class="p-3 font-bold">${roleBadge}</td>
+            <td class="p-3">${lessonBadges || '<span class="text-slate-300 text-[11px]">Dars yo\'q</span>'}</td>
+            <td class="p-3 font-mono text-slate-700 font-bold">${t.login}</td>
             <td class="p-3 font-mono text-slate-600">${t.pass}</td>
-            <td class="p-3 text-right">
-              <button onclick="openChangePasswordModal('${t.id}')" class="px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-xl font-bold active:bg-blue-100">Parol</button>
+            <td class="p-3 text-right space-x-1">
+              <button onclick="openTeacherFormModal('${t.id}')" class="px-2.5 py-1.5 bg-blue-50 text-blue-600 rounded-xl font-bold active:bg-blue-100">
+                <i class="fa-solid fa-pen"></i> Tahrirlash
+              </button>
+              ${t.id !== 'admin' ? `
+                <button onclick="deleteTeacher('${t.id}')" class="px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-xl font-bold active:bg-rose-100">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              ` : ''}
             </td>
           </tr>
         `;
       });
     }
 
-    let targetTeacherId = null;
-    function openChangePasswordModal(id) {
-      targetTeacherId = id;
-      const tObj = cachedTeachers[id];
-      document.getElementById('changePasswordTeacherName').innerText = tObj ? tObj.name : '';
-      document.getElementById('newTeacherPasswordInput').value = '';
-      document.getElementById('changePasswordModal').classList.remove('hidden');
+    function onTeacherRoleSelectChange() {
+      const role = document.getElementById('formTeacherRole').value;
+      const clsWrap = document.getElementById('formTeacherClassWrapper');
+      if (role === 'class_leader') clsWrap.classList.remove('hidden');
+      else clsWrap.classList.add('hidden');
     }
-    function closeChangePasswordModal() {
-      document.getElementById('changePasswordModal').classList.add('hidden');
-      targetTeacherId = null;
+
+    function openTeacherFormModal(teacherId = null) {
+      editingTeacherId = teacherId;
+      const clsSel = document.getElementById('formTeacherClass');
+      clsSel.innerHTML = ORDERED_CLASSES.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      if (teacherId && cachedTeachers[teacherId]) {
+        const t = cachedTeachers[teacherId];
+        document.getElementById('teacherFormModalTitle').innerText = "Xodimni Tahrirlash";
+        document.getElementById('formTeacherName').value = t.name || '';
+        document.getElementById('formTeacherRole').value = t.role || 'subject';
+        if (t.class) clsSel.value = t.class;
+        document.getElementById('formTeacherLogin').value = t.login || '';
+        document.getElementById('formTeacherPass').value = t.pass || '';
+      } else {
+        document.getElementById('teacherFormModalTitle').innerText = "Yangi Xodim Qo'shish";
+        document.getElementById('formTeacherName').value = '';
+        document.getElementById('formTeacherRole').value = 'subject';
+        document.getElementById('formTeacherLogin').value = '';
+        document.getElementById('formTeacherPass').value = '123456';
+      }
+      onTeacherRoleSelectChange();
+      document.getElementById('teacherFormModal').classList.remove('hidden');
     }
-    function saveNewTeacherPassword() {
-      const p = document.getElementById('newTeacherPasswordInput').value.trim();
-      if (!p) return alert("Parol bo'sh bo'lishi mumkin emas!");
-      db.ref(`teachers/${targetTeacherId}/pass`).set(p, () => {
-        closeChangePasswordModal();
-        alert("Parol muvaffaqiyatli yangilandi!");
+
+    function closeTeacherFormModal() {
+      document.getElementById('teacherFormModal').classList.add('hidden');
+      editingTeacherId = null;
+    }
+
+    function saveTeacherForm() {
+      const name = document.getElementById('formTeacherName').value.trim();
+      const role = document.getElementById('formTeacherRole').value;
+      const cls = role === 'class_leader' ? document.getElementById('formTeacherClass').value : "";
+      const login = document.getElementById('formTeacherLogin').value.trim();
+      const pass = document.getElementById('formTeacherPass').value.trim();
+
+      if (!name || !login || !pass) return alert("Barcha maydonlarni to'ldiring!");
+
+      const duplicate = Object.values(cachedTeachers).find(t => t.login.toLowerCase() === login.toLowerCase() && t.id !== editingTeacherId);
+      if (duplicate) return alert("Ushbu login boshqa xodimda band! Boshqa login kiriting.");
+
+      const id = editingTeacherId || ("t_" + Date.now());
+      const oldLogin = (editingTeacherId && cachedTeachers[editingTeacherId]) ? cachedTeachers[editingTeacherId].login : null;
+
+      const newTeacherObj = { id, name, role, class: cls, login, pass };
+
+      db.ref(`teachers/${id}`).set(newTeacherObj, () => {
+        // Agar xodimning logini o'zgargan bo'lsa, uning dars jadvalini yangi loginga ko'chiramiz
+        if (oldLogin && oldLogin !== login && cachedSchedules[oldLogin]) {
+          const movedSchedule = cachedSchedules[oldLogin];
+          db.ref(`schedules/teacherMap/${login}`).set(movedSchedule);
+          db.ref(`schedules/teacherMap/${oldLogin}`).remove();
+        }
+        closeTeacherFormModal();
       });
+    }
+
+    function deleteTeacher(id) {
+      const t = cachedTeachers[id];
+      if (!t) return;
+      if (confirm(`Haqiqatan ham "${t.name}" xodimni o'chirmoqchimisiz?`)) {
+        db.ref(`teachers/${id}`).remove();
+      }
+    }
+
+    // ==================== O'QITUVCHI PROFIL BO'LIMI (LOGIN VA PAROLNI O'ZI O'ZGARTIRISHI) ====================
+    function populateTeacherProfileTab() {
+      if (!currentUser) return;
+      const fresh = cachedTeachers[currentUser.id] || currentUser;
+      document.getElementById('profileTeacherName').innerText = fresh.name;
+      document.getElementById('profileTeacherRole').innerText = fresh.role === 'class_leader' ? `${fresh.class} sinf rahbari` : `Fan o'qituvchisi`;
+      document.getElementById('profileLoginInput').value = fresh.login;
+      document.getElementById('profilePassInput').value = fresh.pass;
+      document.getElementById('profileSaveMsg').classList.add('hidden');
+    }
+
+    function saveTeacherOwnProfile(e) {
+      e.preventDefault();
+      if (!currentUser || !currentUser.id) return;
+
+      const newLogin = document.getElementById('profileLoginInput').value.trim();
+      const newPass = document.getElementById('profilePassInput').value.trim();
+      const msgEl = document.getElementById('profileSaveMsg');
+
+      if (!newLogin || !newPass) return alert("Login va parol bo'sh bo'lishi mumkin emas!");
+
+      const duplicate = Object.values(cachedTeachers).find(t => t.login.toLowerCase() === newLogin.toLowerCase() && t.id !== currentUser.id);
+      if (duplicate) {
+        msgEl.innerText = "Bu login boshqa o'qituvchida band! Boshqa login tanlang.";
+        msgEl.className = "text-xs font-bold text-center text-rose-600";
+        msgEl.classList.remove('hidden');
+        return;
+      }
+
+      const oldLogin = currentUser.login;
+      db.ref(`teachers/${currentUser.id}`).update({
+        login: newLogin,
+        pass: newPass
+      }, () => {
+        if (oldLogin && oldLogin !== newLogin && cachedSchedules[oldLogin]) {
+          const movedSchedule = cachedSchedules[oldLogin];
+          db.ref(`schedules/teacherMap/${newLogin}`).set(movedSchedule);
+          db.ref(`schedules/teacherMap/${oldLogin}`).remove();
+        }
+        currentUser.login = newLogin;
+        currentUser.pass = newPass;
+        localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
+
+        msgEl.innerText = "Login va parolingiz muvaffaqiyatli yangilandi! Admin panelida ham o'zgardi.";
+        msgEl.className = "text-xs font-bold text-center text-emerald-600";
+        msgEl.classList.remove('hidden');
+      });
+    }
+
+    // ==================== 6-FUNKSIYA: INTERAKTIV DARS JADVALI (PLATFORMADA BELGILASH) ====================
+    function selectScheduleEditorDay(dayNum) {
+      selectedScheduleEditorDay = dayNum;
+      const btns = document.querySelectorAll('#scheduleDayTabs button');
+      btns.forEach(b => {
+        if (Number(b.getAttribute('data-day')) === dayNum) {
+          b.className = "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-blue-600 text-white shadow-xs transition";
+        } else {
+          b.className = "px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-slate-100 text-slate-600 hover:bg-slate-200 transition";
+        }
+      });
+      renderInteractiveScheduleTable();
+    }
+
+    function renderInteractiveScheduleTable() {
+      const tbody = document.getElementById('interactiveScheduleTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const q = (document.getElementById('searchScheduleTeacherInput')?.value || '').toLowerCase();
+      const teachers = Object.values(cachedTeachers)
+        .filter(t => t.role !== 'admin' && t.role !== 'creator')
+        .filter(t => t.name.toLowerCase().includes(q) || t.login.toLowerCase().includes(q));
+
+      teachers.forEach((t, idx) => {
+        const dayMap = getTeacherScheduleForDay(t.login, selectedScheduleEditorDay);
+
+        let cellsHtml = '';
+        for (let h = 1; h <= 8; h++) {
+          const curCls = dayMap[String(h)] || "";
+          const selectStyle = curCls
+            ? "bg-blue-50 text-blue-700 border-blue-200 font-black"
+            : "bg-slate-50 text-slate-400 border-slate-200 font-medium";
+
+          let optionsHtml = `<option value="">—</option>`;
+          ORDERED_CLASSES.forEach(c => {
+            optionsHtml += `<option value="${c}" ${curCls === c ? 'selected' : ''}>${c}</option>`;
+          });
+          // Agar Excel'dan birlashgan sinf kelgan bo'lsa
+          if (curCls && !ORDERED_CLASSES.includes(curCls)) {
+            optionsHtml += `<option value="${curCls}" selected>${curCls}</option>`;
+          }
+
+          cellsHtml += `
+            <td class="p-1.5 text-center">
+              <select onchange="updateSingleScheduleSlot('${t.login}', ${selectedScheduleEditorDay}, '${h}', this.value)" class="border rounded-xl px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none transition ${selectStyle}">
+                ${optionsHtml}
+              </select>
+            </td>
+          `;
+        }
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="p-3 font-bold text-slate-400 text-center">${idx + 1}</td>
+            <td class="p-3">
+              <div class="font-bold text-slate-800">${t.name}</div>
+              <div class="text-[10px] text-slate-400 font-mono">${t.login} ${t.class ? `• ${t.class} rahbari` : ''}</div>
+            </td>
+            ${cellsHtml}
+          </tr>
+        `;
+      });
+    }
+
+    function updateSingleScheduleSlot(teacherLogin, dayNum, hourKey, newClassVal) {
+      const refPath = `schedules/teacherMap/${teacherLogin}/${dayNum}/${hourKey}`;
+      if (newClassVal) {
+        db.ref(refPath).set(newClassVal);
+      } else {
+        db.ref(refPath).remove();
+      }
     }
 
     // ==================== EXCEL DARS JADVALI SHABLONI VA YUKLASH ====================
@@ -2034,7 +2606,7 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // ==================== EXCEL EKSPORTI ====================
+    // ==================== EXCEL EKSPORTI (KUNLIK, HAFTALIK VA OYLIK) ====================
     function exportClassesDailyExcel() {
       const allStudents = Object.values(cachedStudents);
 
@@ -2147,6 +2719,113 @@
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, `Darsbay_Davomat`);
       XLSX.writeFile(wb, `Oquvchilar_Darsbay_Davomat_${currentDayStr}.xlsx`);
+    }
+
+    // 2-FUNKSIYA: Haftalik (7 kun) va Oylik (30 kun) Yig'ma Excel Hisoboti
+    function exportPeriodExcel(daysCount, labelName) {
+      const parts = currentDayStr.split('-');
+      const endDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const dateKeys = [];
+
+      for (let i = daysCount - 1; i >= 0; i--) {
+        const d = new Date(endDate);
+        d.setDate(endDate.getDate() - i);
+        if (d.getDay() !== 0) { // Yakshanbani hisobga olmaymiz
+          dateKeys.push(formatDateLocal(d));
+        }
+      }
+
+      const startDateStr = dateKeys[0] || currentDayStr;
+      db.ref('attendance').once('value', snap => {
+        const allAtt = snap.val() || {};
+        let allStudents = sortStudentsCanonical(Object.values(cachedStudents));
+
+        // 1-Sahifa: O'quvchilar kesimida
+        const stRows = [
+          [`Maktab O'quvchilarining ${labelName} Yig'ma Davomat Hisoboti (${startDateStr} dan ${currentDayStr} gacha)`],
+          [],
+          ["#", "O'quvchi F.I.SH.", "Sinf", "O'quv kunlari soni", "Sababsiz qoldirgan kunlari", "Sababli kunlari", "Jami qoldirgan dars soatlari (Sababsiz)", "Davomat Foizi"]
+        ];
+
+        allStudents.forEach((st, idx) => {
+          let absentDays = 0;
+          let excusedDays = 0;
+          let absentHours = 0;
+
+          dateKeys.forEach(dKey => {
+            const rec = (allAtt[dKey] && allAtt[dKey][st.id]) ? allAtt[dKey][st.id] : {};
+            if (rec['ERT'] === 'excused') {
+              excusedDays++;
+            } else {
+              let dayHasAbsent = false;
+              ['1', '2', '3', '4', '5', '6', '7', '8'].forEach(h => {
+                if (rec[h] === 'absent') {
+                  absentHours++;
+                  dayHasAbsent = true;
+                }
+              });
+              if (rec['ERT'] === 'absent' || dayHasAbsent) absentDays++;
+            }
+          });
+
+          const totalDays = Math.max(1, dateKeys.length);
+          const pct = (((totalDays - absentDays) / totalDays) * 100).toFixed(1) + "%";
+
+          stRows.push([
+            idx + 1,
+            st.name,
+            st.class,
+            dateKeys.length,
+            absentDays,
+            excusedDays,
+            absentHours,
+            pct
+          ]);
+        });
+
+        // 2-Sahifa: Sinflar kesimida
+        const clsRows = [
+          [`Sinflar Kesimida ${labelName} Davomat Reytingi (${startDateStr} — ${currentDayStr})`],
+          [],
+          ["#", "Sinf", "O'quvchilar soni", "Sababsiz qoldirilgan kunlar (Jami)", "Sababli kunlar (Jami)", "O'rtacha Davomat Foizi"]
+        ];
+
+        ORDERED_CLASSES.forEach((cName, idx) => {
+          const cStudents = allStudents.filter(s => s.class === cName);
+          let cAbsentDays = 0;
+          let cExcusedDays = 0;
+
+          cStudents.forEach(st => {
+            dateKeys.forEach(dKey => {
+              const rec = (allAtt[dKey] && allAtt[dKey][st.id]) ? allAtt[dKey][st.id] : {};
+              if (rec['ERT'] === 'excused') cExcusedDays++;
+              else if (['ERT', '1', '2', '3', '4', '5', '6', '7', '8'].some(k => rec[k] === 'absent')) cAbsentDays++;
+            });
+          });
+
+          const possibleStudentDays = Math.max(1, cStudents.length * dateKeys.length);
+          const avgPct = (((possibleStudentDays - cAbsentDays) / possibleStudentDays) * 100).toFixed(1) + "%";
+
+          clsRows.push([
+            idx + 1,
+            cName,
+            cStudents.length,
+            cAbsentDays,
+            cExcusedDays,
+            avgPct
+          ]);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.aoa_to_sheet(stRows);
+        ws1['!cols'] = [{ wch: 6 }, { wch: 38 }, { wch: 10 }, { wch: 18 }, { wch: 24 }, { wch: 16 }, { wch: 34 }, { wch: 15 }];
+        const ws2 = XLSX.utils.aoa_to_sheet(clsRows);
+        ws2['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 22 }, { wch: 22 }];
+
+        XLSX.utils.book_append_sheet(wb, ws1, "Oquvchilar_Kesimida");
+        XLSX.utils.book_append_sheet(wb, ws2, "Sinflar_Kesimida");
+        XLSX.writeFile(wb, `${labelName}_Davomat_Hisoboti_${currentDayStr}.xlsx`);
+      });
     }
   </script>
 </body>
