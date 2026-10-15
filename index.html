@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Maktab Davomat Platformasi</title>
   
+  <!-- PWA & Mobil Ilova Meta Teglari (iOS va Android uchun to'liq ekran rejimi) -->
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Davomat">
+  <link id="appleTouchIcon" rel="apple-touch-icon" href="">
+  <link id="appFavicon" rel="icon" type="image/png" href="">
+  
   <!-- Tailwind CSS & FontAwesome & Chart.js -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -59,6 +68,29 @@
           Kirish
         </button>
       </form>
+
+      <!-- TELEFONGA ILOVA SIFATIDA O'RNATISH TUGMASI -->
+      <div id="loginInstallBanner" class="mt-5 pt-4 border-t border-slate-100">
+        <button type="button" onclick="triggerInstallApp()" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-mobile-screen-button text-sm"></i>
+          <span>Ilovani telefonga o'rnatish</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ilovani o'rnatish bo'yicha ko'rsatma modali (iOS va avto-o'rnatish chiqmagan brauzerlar uchun) -->
+  <div id="installGuideModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-xs sm:max-w-sm w-full p-6 shadow-2xl">
+      <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl">
+        <i class="fa-solid fa-mobile-screen"></i>
+      </div>
+      <h3 class="text-base font-bold text-slate-800 text-center mb-1">Telefonga o'rnatish</h3>
+      <p class="text-xs text-slate-400 text-center mb-4">Keyingi safar 1 bosishda kirish uchun asosiy ekranga qo'shing:</p>
+      
+      <div id="installStepsContent" class="space-y-3 text-xs text-slate-700 font-medium mb-5 bg-slate-50 p-3.5 rounded-2xl border border-slate-100"></div>
+
+      <button onclick="closeInstallGuideModal()" class="w-full py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold active:bg-blue-700">Tushunarli</button>
     </div>
   </div>
 
@@ -131,10 +163,17 @@
             </div>
           </div>
 
-          <!-- Chiqish tugmasi -->
-          <button onclick="logout()" title="Chiqish" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition flex-shrink-0">
-            <i class="fa-solid fa-arrow-right-from-bracket text-base"></i>
-          </button>
+          <!-- O'rnatish va Chiqish tugmalari -->
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button id="headerInstallBtn" onclick="triggerInstallApp()" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-download"></i>
+              <span class="hidden sm:inline">Ilovani o'rnatish</span>
+              <span class="sm:hidden">O'rnatish</span>
+            </button>
+            <button onclick="logout()" title="Chiqish" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition">
+              <i class="fa-solid fa-arrow-right-from-bracket text-base"></i>
+            </button>
+          </div>
         </div>
 
         <!-- Gorizontal Tab Navigatsiyasi (Telefonda silliq suriladi) -->
@@ -470,6 +509,132 @@
 
   <!-- ==================== JAVASCRIPT VA FIREBASE MANTIQI ==================== -->
   <script>
+    // ==================== PWA VA TELEFONGA O'RNATISH TIZIMI ====================
+    let deferredInstallPrompt = null;
+
+    function setupSingleFilePWA() {
+      // 1. Canvas yordamida chiroyli 512x512 ilova ikonkasini avtomatik chizish
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+
+      // Ko'k fon
+      ctx.fillStyle = '#2563eb';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 512, 512, 115);
+      ctx.fill();
+
+      // Oq tasdiq belgisi va "DAVOMAT" yozuvi
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 210px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✓', 256, 215);
+
+      ctx.font = 'bold 58px sans-serif';
+      ctx.fillText('DAVOMAT', 256, 395);
+
+      const iconDataUrl = canvas.toDataURL('image/png');
+      document.getElementById('appleTouchIcon').href = iconDataUrl;
+      document.getElementById('appFavicon').href = iconDataUrl;
+
+      // 2. Web App Manifestni dinamik ulash (alohida fayl kerak emas)
+      const manifest = {
+        name: "Maktab Davomat Platformasi",
+        short_name: "Davomat",
+        description: "Maktab o'qituvchilari uchun tezkor davomat tizimi",
+        start_url: window.location.href,
+        display: "standalone",
+        background_color: "#f8fafc",
+        theme_color: "#2563eb",
+        orientation: "portrait",
+        icons: [
+          { src: iconDataUrl, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+          { src: iconDataUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+        ]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = URL.createObjectURL(manifestBlob);
+      document.head.appendChild(manifestLink);
+
+      // 3. Agar foydalanuvchi allaqachon o'rnatilgan ilova ichidan kirgan bo'lsa, o'rnatish tugmalarini yashirish
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      if (isStandalone) {
+        hideInstallButtons();
+      }
+    }
+
+    function hideInstallButtons() {
+      const b1 = document.getElementById('loginInstallBanner');
+      const b2 = document.getElementById('headerInstallBtn');
+      if (b1) b1.classList.add('hidden');
+      if (b2) b2.classList.add('hidden');
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      hideInstallButtons();
+    });
+
+    function triggerInstallApp() {
+      // Agar Android Chrome avtomatik o'rnatish oynasini tayyorlab qo'ygan bo'lsa — darhol chiqaramiz
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            hideInstallButtons();
+          }
+          deferredInstallPrompt = null;
+        });
+        return;
+      }
+
+      // Aks holda (iPhone iOS yoki oddiy brauzerda) aniq 2 qadamli vizual ko'rsatma chiqaramiz
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const stepsBox = document.getElementById('installStepsContent');
+
+      if (isIOS) {
+        stepsBox.innerHTML = `
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center text-[11px] font-bold">1</span>
+            <p>Pastdagi menyudan <b>"Ulashish" (Поделиться)</b> <i class="fa-solid fa-arrow-up-from-bracket text-blue-600 mx-1"></i> tugmasini bosing.</p>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center text-[11px] font-bold">2</span>
+            <p>Ro'yxatdan <b>"Asosiy ekranga" (На экран «Домой»)</b> <i class="fa-regular fa-square-plus text-blue-600 mx-1"></i> bandini tanlang va <b>Qo'shish</b> ni bosing.</p>
+          </div>
+        `;
+      } else {
+        stepsBox.innerHTML = `
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center text-[11px] font-bold">1</span>
+            <p>Brauzerning yuqori o'ng burchagidagi <b>uchta nuqta</b> <i class="fa-solid fa-ellipsis-vertical text-blue-600 mx-1"></i> menyusini bosing.</p>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex-shrink-0 flex items-center justify-center text-[11px] font-bold">2</span>
+            <p><b>"Ilovani o'rnatish" (Установить приложение)</b> yoki <b>"Asosiy ekranga qo'shish"</b> tugmasini bosing.</p>
+          </div>
+        `;
+      }
+
+      document.getElementById('installGuideModal').classList.remove('hidden');
+    }
+
+    function closeInstallGuideModal() {
+      document.getElementById('installGuideModal').classList.add('hidden');
+    }
+
+    setupSingleFilePWA();
+
+    // ==================== ASOSIY MA'LUMOTLAR VA FIREBASE ====================
     const ORDERED_CLASSES = ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A", "11-B"];
     const WEEKDAYS_UZ = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 
@@ -839,7 +1004,6 @@
     }
     let currentDayStr = getLocalDayStr();
 
-    // Bugungi hafta kuni: 1 = Dushanba ... 6 = Shanba (Yakshanba bo'lsa 1-Dushanba deb oladi)
     function getCurrentDayIndex() {
       const day = new Date().getDay();
       return day === 0 ? 1 : day;
@@ -848,7 +1012,7 @@
     let cachedTeachers = {};
     let cachedStudents = {};
     let cachedAttendance = {};
-    let cachedSchedules = {}; // Struktura: { teacherLogin: { dayIndex(1..6): { hour(1..8): "5-A" } } }
+    let cachedSchedules = {};
 
     function preloadLocalFallbacks() {
       const savedTeachers = localStorage.getItem('school_cached_teachers');
@@ -1135,7 +1299,6 @@
       return cachedSchedules[teacherLogin][dayIdx] || {};
     }
 
-    // O'qituvchi kirganda yoki dars soatini o'zgartirganda sinfni avtomatik bog'laydi
     function syncTeacherLessonAndClass(autoPickFirstLesson = false) {
       if (!currentUser) return;
       const dayIdx = getCurrentDayIndex();
@@ -1146,7 +1309,6 @@
 
       if (dayBadge) dayBadge.innerText = WEEKDAYS_UZ[dayIdx] || '';
 
-      // Creator yoki Admin barcha sinflarni ko'ra oladi
       if (currentUser.role === 'creator' || currentUser.role === 'admin') {
         classSel.innerHTML = '';
         ORDERED_CLASSES.forEach(c => {
@@ -1156,11 +1318,9 @@
         return;
       }
 
-      // Agar bazaga dars jadvali yuklangan bo'lsa -> faqat jadvaldagi sinfi chiqadi
       if (hasAnyScheduleLoaded()) {
         const todayMap = getTeacherTodaySchedule(currentUser.login);
 
-        // Ilk kirganda o'qituvchining bugungi birinchi darsi qaysi soatda bo'lsa, o'sha soatni tanlab qo'yadi
         if (autoPickFirstLesson) {
           for (let h = 1; h <= 8; h++) {
             if (todayMap[String(h)]) {
@@ -1170,7 +1330,6 @@
           }
         }
 
-        // Dars soatlari ro'yxatida qaysi soatda qaysi sinf borligini ko'rsatib turadi
         Array.from(hourSel.options).forEach(opt => {
           const h = opt.value;
           const assignedCls = todayMap[h];
@@ -1182,7 +1341,6 @@
 
         classSel.innerHTML = '';
         if (assignedClass) {
-          // Agar bir soatda ikkita sinf birlashgan bo'lsa (masalan "5-A, 5-B")
           const classes = assignedClass.split(',').map(s => s.trim()).filter(Boolean);
           classes.forEach(c => {
             classSel.innerHTML += `<option value="${c}">${c}</option>`;
@@ -1193,7 +1351,6 @@
           hintEl.innerText = `Jadval bo'yicha ${selectedHour}-soatda darsingiz yo'q`;
         }
       } else {
-        // Agar Excel jadval hali yuklanmagan bo'lsa, odatiy tartibda ishlaydi
         Array.from(hourSel.options).forEach(opt => {
           opt.text = `${opt.value} - Dars`;
         });
@@ -1418,7 +1575,6 @@
       });
     }
 
-    // TELEFONDA TEZKOR DAVOMAT BELGILASH (JADVAL ASOSIDA)
     function renderTeacherAttendanceTable() {
       const selectedClass = document.getElementById('teacherSelectClass').value;
       const lessonHour = document.getElementById('teacherSelectLessonHour').value;
@@ -1737,9 +1893,7 @@
     function normalizeClassName(raw) {
       if (!raw) return "";
       let s = String(raw).toUpperCase().trim().replace(/\s+/g, '');
-      // Kirill harflarini lotinga o'girish (А -> A, Б -> B, В -> V)
       s = s.replace(/А/g, 'A').replace(/Б/g, 'B').replace(/В/g, 'V');
-      // Agar "5A" yozilgan bo'lsa "5-A" qilish
       const m = s.match(/^(\d{1,2})-?([ABV])$/);
       if (m) return `${m[1]}-${m[2]}`;
       return ORDERED_CLASSES.includes(s) ? s : "";
@@ -1761,15 +1915,12 @@
       if (!identifier) return null;
       const clean = String(identifier).toLowerCase().trim();
       const teachers = Object.values(cachedTeachers);
-      // 1. Login bo'yicha qidirish
       const byLogin = teachers.find(t => t.login && t.login.toLowerCase() === clean);
       if (byLogin) return byLogin.login;
-      // 2. Ism-familiya bo'yicha qidirish
       const byName = teachers.find(t => t.name && (t.name.toLowerCase() === clean || t.name.toLowerCase().includes(clean) || clean.includes(t.login.toLowerCase())));
       return byName ? byName.login : null;
     }
 
-    // Admin uchun tayyor Excel shablonni yuklab olish
     function downloadScheduleTemplate() {
       const wb = XLSX.utils.book_new();
       const days = ["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
@@ -1810,7 +1961,6 @@
       XLSX.writeFile(wb, "O'qituvchilar_Dars_Jadvali_Shabloni.xlsx");
     }
 
-    // Excel faylni o'qib, har bir o'qituvchining loginiga kun va soat bo'yicha sinflarni bog'laydi
     function handleScheduleUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1835,12 +1985,10 @@
               if (!tLogin) return;
 
               const rowDayRaw = row['Kun'] || row['kun'] || row['Hafta kuni'] || '';
-              // Agar Kun ustuni bo'lmasa yoki bo'sh bo'lsa, barcha 6 kunga (1..6) tatbiq qiladi
               const targetDays = parseDayIndex(rowDayRaw) ? [parseDayIndex(rowDayRaw)] : (sheetDayIdx ? [sheetDayIdx] : [1, 2, 3, 4, 5, 6]);
 
               if (!teacherMap[tLogin]) teacherMap[tLogin] = {};
 
-              // 1-usul: "1-soat", "2-soat" ... "8-soat" ustunlari orqali
               for (let h = 1; h <= 8; h++) {
                 const cellVal = row[`${h}-soat`] || row[`${h}-dars`] || row[`${h}`] || row[`Soat ${h}`];
                 const cls = normalizeClassName(cellVal);
@@ -1853,7 +2001,6 @@
                 }
               }
 
-              // 2-usul: Agar jadval "Login | Kun | Soat | Sinf" ko'rinishida bo'lsa
               const singleHour = String(row['Soat'] || row['soat'] || row['Dars'] || '').replace(/\D/g, '');
               const singleClass = normalizeClassName(row['Sinf'] || row['sinf']);
               if (singleHour && singleClass && Number(singleHour) >= 1 && Number(singleHour) <= 8) {
