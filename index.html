@@ -1,1194 +1,56 @@
-<!DOCTYPE html>
-<html lang="uz">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0f766e" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Davomat Pro" />
-  <title>Maktab Davomat va Nazorat Platformasi</title>
-  <link id="appFavicon" rel="icon" type="image/png" href="" />
-  <link id="appManifest" rel="manifest" href="" />
+<script>
+    // ==================== GLOBAL O'ZGARUVCHILAR (TDZ XATOLIGINI OLDINI OLISH UCHUN ENG YUQORIDA) ====================
+    let smartRenderTimer = null;
+    let deferredPwaPrompt = null;
+    let clickCount = 0;
+    let clickTimer = null;
 
-  <!-- Tailwind CSS & FontAwesome -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-
-  <!-- Chart.js & SheetJS (Excel) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <!-- Firebase Realtime Database SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-    :root {
-      --bg-main: #edf3f1;
-      --bg-card: #f9fbfa;
-      --bg-elevated: #ffffff;
-      --text-primary: #1e293b;
-      --text-muted: #64748b;
-      --border-soft: #dce6e3;
-      --accent-teal: #0f766e;
+    function formatDateLocal(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     }
 
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: var(--bg-main);
-      color: var(--text-primary);
-      -webkit-tap-highlight-color: transparent;
-      transition: background-color 0.2s ease, color 0.2s ease;
-    }
+    const todayDayStr = formatDateLocal(new Date());
+    let currentDayStr = todayDayStr;
+    let currentUser = null;
+    let activeAdminCategory = 'students';
+    let activeTabId = 'tabAnalytics';
+
+    let cachedStudents = {};
+    let cachedTeachers = {};
+    let cachedWorkers = {};
+    let cachedAttendance = {};
+    let cachedCheckInOut = {};
+    let cachedSchedules = {};
+    let cachedBellTimes = {};
+    let cachedSchoolLocation = null;
+    let cachedDevicesMap = {};
+    let isSingleDeviceLockActive = false;
+
+    let activeAttendanceRef = null;
+    let activeCheckInOutRef = null;
+    let ratingChartInstance = null;
+    let dynamicChartInstance = null;
+    let monthlyChartInstance = null;
+
+    let editingStudentId = null;
+    let editingTeacherId = null;
+    let editingWorkerId = null;
+    let pendingExcuseStudentId = null;
+    let selectedScheduleEditorDay = (new Date().getDay() >= 1 && new Date().getDay() <= 6) ? new Date().getDay() : 1;
+
+    let geoWatchId = null;
+    let latestTeacherAreaState = 'unknown';
+    let currentDeviceIp = '';
+    let silentAudioCtx = null;
+    let silentOscillator = null;
+    let wakeLockSentinel = null;
+    let autoCloseCountdownTimer = null;
+    let autoCloseDismissedToday = false;
+    let lastFirebaseGeoWriteTs = 0;
 
-    .eye-card {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border-soft);
-      box-shadow: 0 2px 10px -2px rgba(15, 118, 110, 0.05);
-      transition: background-color 0.2s ease, border-color 0.2s ease;
-    }
-
-    /* Yumshoq va ko'zni charchatmaydigan status belgilari */
-    .badge-present { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
-    .badge-absent  { background-color: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
-    .badge-late    { background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-    .badge-excused { background-color: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
-
-    /* ==================== TUNGI (KO'ZNI HIMOYALASH) REJIMI ==================== */
-    body.dark-eye-mode {
-      --bg-main: #0b131e;
-      --bg-card: #131f2e;
-      --bg-elevated: #1a293c;
-      --text-primary: #e2e8f0;
-      --text-muted: #94a3b8;
-      --border-soft: #23354d;
-      background-color: #0b131e !important;
-      color: #e2e8f0 !important;
-    }
-
-    body.dark-eye-mode .eye-card,
-    body.dark-eye-mode header {
-      background-color: #131f2e !important;
-      border-color: #23354d !important;
-      color: #e2e8f0 !important;
-    }
-
-    body.dark-eye-mode .text-slate-800,
-    body.dark-eye-mode .text-slate-700,
-    body.dark-eye-mode .text-slate-900 { color: #f1f5f9 !important; }
-
-    body.dark-eye-mode .text-slate-600,
-    body.dark-eye-mode .text-slate-500,
-    body.dark-eye-mode .text-slate-400 { color: #94a3b8 !important; }
-
-    body.dark-eye-mode .bg-slate-50,
-    body.dark-eye-mode .bg-slate-100,
-    body.dark-eye-mode .bg-slate-100\/80,
-    body.dark-eye-mode .bg-white {
-      background-color: #1a293c !important;
-      color: #e2e8f0 !important;
-      border-color: #293d58 !important;
-    }
-
-    body.dark-eye-mode input,
-    body.dark-eye-mode select {
-      background-color: #0f1926 !important;
-      color: #f1f5f9 !important;
-      border-color: #2b415e !important;
-    }
-
-    body.dark-eye-mode tbody tr:hover { background-color: rgba(30, 41, 59, 0.65) !important; }
-    body.dark-eye-mode .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e2f45 !important; }
-    body.dark-eye-mode .border-slate-200,
-    body.dark-eye-mode .border-slate-200\/70,
-    body.dark-eye-mode .border-b { border-color: #23354d !important; }
-
-    body.dark-eye-mode .badge-present { background-color: rgba(16, 185, 129, 0.18) !important; color: #6ee7b7 !important; border-color: rgba(16, 185, 129, 0.35) !important; }
-    body.dark-eye-mode .badge-absent  { background-color: rgba(244, 63, 94, 0.2) !important; color: #fda4af !important; border-color: rgba(244, 63, 94, 0.38) !important; }
-    body.dark-eye-mode .badge-late    { background-color: rgba(245, 158, 11, 0.2) !important; color: #fcd34d !important; border-color: rgba(245, 158, 11, 0.38) !important; }
-    body.dark-eye-mode .badge-excused { background-color: rgba(14, 165, 233, 0.2) !important; color: #7dd3fc !important; border-color: rgba(14, 165, 233, 0.38) !important; }
-
-    /* Maxsus ingichka skrollbar */
-    .table-container::-webkit-scrollbar,
-    .no-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-    .table-container::-webkit-scrollbar-thumb,
-    .no-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
-  </style>
-</head>
-
-<body class="min-h-screen flex flex-col selection:bg-teal-600 selection:text-white">
-
-  <!-- ==================== 1. LOGIN (KIRISH) EKRANI ==================== -->
-  <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900">
-    <div class="bg-white/95 backdrop-blur-md w-full max-w-md rounded-3xl shadow-2xl border border-teal-500/20 p-6 sm:p-8 relative overflow-hidden">
-      <div class="absolute -top-12 -right-12 w-32 h-32 bg-teal-500/10 rounded-full blur-2xl pointer-events-none"></div>
-
-      <div class="flex flex-col items-center text-center mb-6">
-        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-teal-700 to-emerald-500 text-white flex items-center justify-center text-2xl shadow-lg shadow-teal-700/30 mb-3">
-          <i class="fa-solid fa-graduation-cap"></i>
-        </div>
-        <h1 class="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">Maktab Davomat Pro</h1>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Yagona Elektron Davomat va Smena Nazorati Tizimi</p>
-      </div>
-
-      <form onsubmit="return false;" class="space-y-4">
-        <div>
-          <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Foydalanuvchi Logini</label>
-          <div class="relative">
-            <i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-            <input type="text" id="loginUsername" autocomplete="username" placeholder="Loginingizni kiriting" class="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-teal-600 focus:outline-none transition" />
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Maxfiy Parol</label>
-          <div class="relative">
-            <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-            <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••" class="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-teal-600 focus:outline-none transition" />
-          </div>
-        </div>
-
-        <p id="loginErrorMsg" class="text-xs text-rose-600 font-bold text-center hidden">Login yoki parol noto'g'ri!</p>
-
-        <button type="button" onclick="onLoginBtnClick(event)" class="w-full py-3.5 bg-gradient-to-r from-teal-700 to-emerald-600 hover:from-teal-800 hover:to-emerald-700 active:scale-[0.99] text-white font-extrabold rounded-xl shadow-md shadow-teal-700/20 transition text-sm flex items-center justify-center gap-2">
-          <i class="fa-solid fa-right-to-bracket"></i>
-          <span>Tizimga Kirish</span>
-        </button>
-
-        <button type="button" id="installPwaBtnLogin" onclick="triggerPwaInstall()" class="w-full py-2.5 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold rounded-xl border border-teal-200 transition text-xs flex items-center justify-center gap-2">
-          <i class="fa-solid fa-mobile-screen-button text-teal-600"></i>
-          <span>Ilovani telefonga o'rnatish (Asosiy ekranga)</span>
-        </button>
-      </form>
-
-      <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-        <span><i class="fa-solid fa-shield-halved text-teal-600 mr-1"></i>Eye-Care Pro 2.0</span>
-        <button onclick="toggleEyeCareTheme()" class="text-slate-500 hover:text-teal-700 font-bold flex items-center gap-1">
-          <i class="fa-solid fa-moon"></i> <span>Tungi rejim</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== 2. MAXFIY CREATOR OYNASI (5 MARTA BOSGANDA) ==================== -->
-  <div id="creatorModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="eye-card w-full max-w-sm rounded-3xl p-6 space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-          <i class="fa-solid fa-user-astronaut text-teal-600"></i> Creator Maxfiy Kirish
-        </h3>
-        <button onclick="closeCreatorModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <p class="text-xs text-slate-500">Tizim yaratuvchisi maxfiy kodini kiriting:</p>
-      <input type="password" id="creatorCodeInput" placeholder="Maxfiy kod..." class="w-full px-3.5 py-2.5 border rounded-xl text-sm font-mono text-center tracking-widest focus:ring-2 focus:ring-teal-600 focus:outline-none" />
-      <div class="flex gap-2">
-        <button onclick="closeCreatorModal()" class="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">Bekor qilish</button>
-        <button onclick="verifyCreatorCode()" class="flex-1 py-2.5 bg-teal-700 text-white rounded-xl text-xs font-bold">Tasdiqlash</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== 3. ASOSIY DASTUR EKRANI ==================== -->
-  <div id="appScreen" class="flex-1 flex flex-col hidden">
-
-    <!-- YUQORI HEADER VA NAVIGATSIYA -->
-    <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
-      <div class="max-w-[1440px] mx-auto px-3 sm:px-6 py-2.5">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <!-- Logo va Foydalanuvchi Roli -->
-          <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-xl bg-teal-700 text-white flex items-center justify-center text-sm font-black shadow-xs">
-              <i class="fa-solid fa-school-flag"></i>
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h1 class="text-sm sm:text-base font-extrabold text-slate-800 leading-tight">Maktab Davomat Pro</h1>
-                <span id="liveSyncBadge" class="px-2 py-0.5 rounded-md text-[10px] font-bold badge-present">● Onlayn</span>
-                <span id="teacherGeoStatusPill" class="hidden"></span>
-              </div>
-              <p id="userRoleBadge" class="text-[11px] font-semibold text-slate-500">Yuklanmoqda...</p>
-            </div>
-          </div>
-
-          <!-- O'ng tomon amallar: Sana, Tungi rejim, O'rnatish, Chiqish -->
-          <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            <div class="flex items-center bg-slate-100 rounded-xl px-2.5 py-1 border border-slate-200/70">
-              <i class="fa-regular fa-calendar-days text-teal-700 text-xs mr-1.5"></i>
-              <input type="date" id="globalDatePicker" onchange="onGlobalDateChange(this.value)" class="bg-transparent text-xs font-extrabold text-slate-700 focus:outline-none" />
-            </div>
-
-            <button onclick="resetToTodayDate()" title="Bugungi sanaga qaytish" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
-              Bugun
-            </button>
-
-            <button id="installPwaBtnHeader" onclick="triggerPwaInstall()" class="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 rounded-xl text-xs font-bold flex items-center gap-1 transition">
-              <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">O'rnatish</span>
-            </button>
-
-            <button onclick="toggleEyeCareTheme()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
-              <i id="eyeCareIcon" class="fa-solid fa-moon text-indigo-600"></i>
-              <span id="eyeCareLabel" class="hidden md:inline">Tungi rejim</span>
-            </button>
-
-            <button onclick="logout()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-extrabold flex items-center gap-1 transition">
-              <i class="fa-solid fa-power-off"></i> <span class="hidden sm:inline">Chiqish</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- ADMIN UCHUN 4-BLOKLI TARTIBLI KATEGORIYA MENYUSI -->
-        <div id="adminCategoryBar" class="mt-2.5 pt-2 border-t border-slate-200/60 hidden">
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-            <button id="catBtn_students" onclick="switchAdminCategory('students')" class="px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition bg-teal-700 text-white shadow-xs">
-              <i class="fa-solid fa-user-graduate"></i> <span>1. O'quvchilar Davomati</span>
-            </button>
-            <button id="catBtn_teachers" onclick="switchAdminCategory('teachers')" class="px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition bg-slate-100 text-slate-600 hover:bg-slate-200">
-              <i class="fa-solid fa-chalkboard-user"></i> <span>2. O'qituvchilar (Dars)</span>
-            </button>
-            <button id="catBtn_workers" onclick="switchAdminCategory('workers')" class="px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition bg-slate-100 text-slate-600 hover:bg-slate-200">
-              <i class="fa-solid fa-helmet-safety"></i> <span>3. Ishchi-Xodimlar (Smena)</span>
-            </button>
-            <button id="catBtn_security" onclick="switchAdminCategory('security')" class="px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition bg-slate-100 text-slate-600 hover:bg-slate-200">
-              <i class="fa-solid fa-shield-halved"></i> <span>4. Qurilmalar va Sozlama</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- ICHKI BO'LIMLAR QATORI (SUB-TABS) -->
-        <div id="navTabs" class="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-slate-100/90 p-1 rounded-xl"></div>
-      </div>
-    </header>
-
-    <!-- ==================== ASOSIY KONTENT (<main>) ==================== -->
-    <main class="flex-1 max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-4 space-y-4 sm:space-y-6">
-
-      <!-- BARCHA UCHUN GLOBAL "🟢 KELDIM / 🔴 KETDIM" PANELI -->
-      <div id="globalCheckInOutCard" class="eye-card p-3.5 sm:p-5 rounded-3xl border border-teal-300/70">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center text-lg font-black flex-shrink-0 border border-teal-200/60">
-              <i class="fa-solid fa-door-open"></i>
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-xs sm:text-sm font-extrabold text-slate-800">Ishga Kelish va Ketish Nazorati</h3>
-                <span id="myCheckInOutStatusBadge" class="px-2.5 py-0.5 rounded-lg text-[10px] font-bold badge-late">Hali belgilanmagan</span>
-              </div>
-              <p id="myCheckInOutTimesText" class="text-[11px] text-slate-500 mt-0.5 font-medium">
-                Maktab hududiga kirganda <b>"Keldim"</b>, ish yakunida <b>"Ketdim"</b> tugmasini bosing
-              </p>
-            </div>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button id="btnUserCheckIn" onclick="handleUserCheckIn()" class="flex-1 sm:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-right-to-bracket"></i> <span>Keldim</span>
-            </button>
-            <button id="btnUserCheckOut" onclick="handleUserCheckOut()" class="flex-1 sm:flex-none px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-right-from-bracket"></i> <span>Ketdim</span>
-            </button>
-            <button onclick="requestLessonNotificationPermission(true)" title="Dars va smena oldi eslatmalarini yoqish" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-bell text-amber-500"></i> <span class="hidden md:inline">Eslatma (10/5 daq)</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ==================== BO'LIM 1.1: UMUMIY TAHLIL (O'QUVCHILAR) ==================== -->
-      <section id="tabAnalytics" class="space-y-4 sm:space-y-6 hidden">
-        <div class="eye-card p-4 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Maktab O'quvchilari Kunlik Tahlili</h2>
-            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Ertalabki yo'qlama va 1–8-dars soatlari kesimidagi jonli ko'rsatkichlar</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button onclick="exportDetailedAttendanceExcel()" class="flex-1 sm:flex-none px-3.5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-file-excel"></i> Kunlik (Darsbay)
-            </button>
-            <button onclick="exportPeriodExcel(7, 'Haftalik')" class="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-calendar-week"></i> Haftalik Excel
-            </button>
-            <button onclick="exportPeriodExcel(30, 'Oylik')" class="flex-1 sm:flex-none px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-calendar-check"></i> Oylik Excel
-            </button>
-            <button onclick="resetAllAttendanceToZeroForMorning()" class="w-full sm:w-auto px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-broom"></i> 0 dan boshlash
-            </button>
-          </div>
-        </div>
-
-        <!-- 4 ta Asosiy Ko'rsatkich Kartochkalari -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-          <div class="eye-card p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Jami O'quvchilar</p>
-              <h3 id="statTotalStudents" class="text-lg sm:text-2xl font-extrabold text-slate-800 mt-0.5">0</h3>
-              <p class="text-[10px] text-slate-400 mt-0.5">11 ta sinf (5-A — 11-A)</p>
-            </div>
-            <div class="w-10 h-10 bg-sky-50 text-sky-700 rounded-2xl flex items-center justify-center text-base"><i class="fa-solid fa-users"></i></div>
-          </div>
-
-          <div class="eye-card p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Ertalabki Qatnashish</p>
-              <h3 id="statPresentToday" class="text-lg sm:text-2xl font-extrabold text-emerald-700 mt-0.5">0 (0%)</h3>
-              <p class="text-[10px] text-slate-400 mt-0.5">Sinf rahbari yo'qlamasi</p>
-            </div>
-            <div class="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-base"><i class="fa-solid fa-user-check"></i></div>
-          </div>
-
-          <div class="eye-card p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Ertalab Kelmaganlar</p>
-              <h3 id="statAbsentToday" class="text-lg sm:text-2xl font-extrabold text-rose-600 mt-0.5">0</h3>
-              <p id="statExcusedSub" class="text-[10px] text-slate-400 mt-0.5">Sababli: 0 | Kech: 0</p>
-            </div>
-            <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-base"><i class="fa-solid fa-user-xmark"></i></div>
-          </div>
-
-          <div class="eye-card p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Kunlik Umumiy Foiz</p>
-              <h3 id="statDailyOverallPct" class="text-lg sm:text-2xl font-extrabold text-teal-700 mt-0.5">100.0%</h3>
-              <p class="text-[10px] text-slate-400 mt-0.5">1–8-soat darsbay o'rtacha</p>
-            </div>
-            <div class="w-10 h-10 bg-teal-50 text-teal-700 rounded-2xl flex items-center justify-center text-base"><i class="fa-solid fa-chart-line"></i></div>
-          </div>
-        </div>
-
-        <!-- Grafiklar -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div class="eye-card p-4 sm:p-5 rounded-3xl">
-            <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 mb-3">Sinflar Davomat Reytingi (%)</h3>
-            <div class="h-64"><canvas id="classRatingChart"></canvas></div>
-          </div>
-          <div class="eye-card p-4 sm:p-5 rounded-3xl">
-            <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 mb-3">Dars Soatlari Kesimida Qatnashish (1–8-soat)</h3>
-            <div class="h-64"><canvas id="hourlyDynamicChart"></canvas></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 1.2: SINFLAR KESIMI ==================== -->
-      <section id="tabClasses" class="space-y-4 hidden">
-        <div class="eye-card p-4 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Sinflar Kesimida Kunlik Ko'rsatkichlar</h2>
-            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Har bir sinfning ertalabki yo'qlamasi va dars soatlaridagi davomat foizi</p>
-          </div>
-          <button onclick="exportClassesDailyExcel()" class="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition">
-            <i class="fa-solid fa-file-excel"></i> Sinflar Tahlili (Excel)
-          </button>
-        </div>
-
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3.5 text-center w-12">#</th>
-                  <th class="p-3.5">Sinf</th>
-                  <th class="p-3.5 text-center">O'quvchilar</th>
-                  <th class="p-3.5 text-center">Ertalab Bor</th>
-                  <th class="p-3.5 text-center">Ertalab Yo'q</th>
-                  <th class="p-3.5 text-center">Ertalabki %</th>
-                  <th class="p-3.5 text-center">Dars Qoldirganlar</th>
-                  <th class="p-3.5 text-center">Kunlik Darsbay %</th>
-                </tr>
-              </thead>
-              <tbody id="classesSummaryTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 1.3: O'QUVCHILAR RO'YXATI ==================== -->
-      <section id="tabStudentsManage" class="space-y-4 hidden">
-        <div class="eye-card p-4 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base sm:text-xl font-extrabold text-slate-800">O'quvchilar Ro'yxati va Darsbay Jadval</h2>
-            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">O'quvchi qo'shish, tahrirlash va har bir soatdagi davomatini ko'rish</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <input type="file" id="studentsExcelInput" accept=".xlsx, .xls" class="hidden" onchange="handleStudentsExcelUpload(event)" />
-            <button onclick="document.getElementById('studentsExcelInput').click()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-file-import"></i> Excel Import
-            </button>
-            <button onclick="exportDetailedAttendanceExcel()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-file-excel"></i> Darsbay (Excel)
-            </button>
-            <button onclick="openStudentFormModal()" class="w-full sm:w-auto px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-user-plus"></i> O'quvchi qo'shish
-            </button>
-          </div>
-        </div>
-
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="p-4 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2 flex-wrap">
-              <select id="filterStudentsClass" onchange="renderStudentsManageTable()" class="bg-slate-100 border-0 rounded-xl px-3 py-2 text-xs font-bold"></select>
-              <select id="filterStudentsStatus" onchange="renderStudentsManageTable()" class="bg-slate-100 border-0 rounded-xl px-3 py-2 text-xs font-bold">
-                <option value="ALL">Barcha holatlar</option>
-                <option value="absent">🔴 Dars qoldirganlar (Yo'q)</option>
-                <option value="excused">🔵 Sabablilar</option>
-                <option value="late">🟡 Kechikkanlar</option>
-              </select>
-            </div>
-            <input type="text" id="searchStudentsInput" oninput="renderStudentsManageTable()" placeholder="O'quvchi F.I.SH bo'yicha qidirish..." class="w-full sm:w-64 px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none" />
-          </div>
-
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[210px]">O'quvchi F.I.SH</th>
-                  <th class="p-3 text-center">Sinf</th>
-                  <th class="p-3 text-center">Ertalab</th>
-                  <th class="p-2 text-center">1-s</th>
-                  <th class="p-2 text-center">2-s</th>
-                  <th class="p-2 text-center">3-s</th>
-                  <th class="p-2 text-center">4-s</th>
-                  <th class="p-2 text-center">5-s</th>
-                  <th class="p-2 text-center">6-s</th>
-                  <th class="p-2 text-center">7-s</th>
-                  <th class="p-2 text-center">8-s</th>
-                  <th class="p-3 text-center">Kunlik %</th>
-                  <th class="p-3 text-right">Amal</th>
-                </tr>
-              </thead>
-              <tbody id="studentsManageTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 1.4: DAVOMAT OLISH (O'QITUVCHI VA ADMIN) ==================== -->
-      <section id="tabTakeAttendance" class="space-y-4 hidden">
-        <!-- Maktab hududidan tashqarida bo'lsa chiquvchi Qizil Bloklovchi Banner -->
-        <div id="teacherGeoWarningBanner" class="bg-rose-600 text-white p-4 rounded-3xl shadow-lg hidden">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-lg">
-                <i class="fa-solid fa-location-crosshairs"></i>
-              </div>
-              <div>
-                <h4 id="teacherGeoWarningTitle" class="text-xs sm:text-sm font-extrabold">Siz maktab hududidan tashqaridasiz!</h4>
-                <p id="teacherGeoWarningDesc" class="text-[11px] text-rose-100 mt-0.5">Dars davomatini belgilash faqat maktab hududi ichida amalga oshiriladi.</p>
-              </div>
-            </div>
-            <button onclick="retryTeacherGeolocation()" class="px-3.5 py-2 bg-white text-rose-700 rounded-xl text-xs font-extrabold hover:bg-rose-50 transition">
-              <i class="fa-solid fa-rotate mr-1"></i> Joylashuvni yangilash
-            </button>
-          </div>
-        </div>
-
-        <div class="eye-card p-4 sm:p-6 rounded-3xl space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Sinf va Dars Davomatini Belgilash</h2>
-              <p id="teacherScheduleHintText" class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Sinf va dars soatini tanlab, davomatni tasdiqlang</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <select id="attClassSelect" onchange="onAttClassOrPeriodChange()" class="border border-slate-200 rounded-xl px-3 py-2 text-xs font-extrabold"></select>
-              <select id="attPeriodSelect" onchange="onAttClassOrPeriodChange()" class="border border-slate-200 rounded-xl px-3 py-2 text-xs font-extrabold"></select>
-              <button id="btnConfirmPeriodAttendance" onclick="confirmClassPeriodAttendance()" class="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
-                <i class="fa-solid fa-circle-check"></i> <span>Davomatni Tasdiqlash</span>
-              </button>
-            </div>
-          </div>
-
-          <div id="periodSubmissionStatusBox" class="px-3.5 py-2 rounded-2xl text-xs font-bold bg-slate-100 text-slate-600"></div>
-        </div>
-
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[200px]">O'quvchi F.I.SH</th>
-                  <th class="p-3 text-center">Ertalabki Holat</th>
-                  <th class="p-3 text-center">Joriy Dars Holati</th>
-                  <th class="p-3 text-right">Belgilash Tugmalari</th>
-                </tr>
-              </thead>
-              <tbody id="takeAttendanceTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-      <!-- ==================== BO'LIM 2.1: O'QITUVCHILAR JOYLASHUVI VA VAQT NAZORATI ("XODIM 2") ==================== -->
-      <section id="tabTeachersLocation" class="space-y-4 sm:space-y-6 hidden">
-        <!-- Maktab GPS va Wi-Fi Markazini Sozlash Kartochkasi -->
-        <div class="eye-card p-4 sm:p-6 rounded-3xl space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Maktab Hududi (GPS Radius + Wi-Fi) va O'qituvchilar Vaqti</h2>
-                <span id="schoolCoordsStatusBadge" class="px-2.5 py-0.5 rounded-lg text-[11px] font-bold badge-late">Maktab nuqtasi belgilanmagan</span>
-              </div>
-              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Faqat dars beruvchi o'qituvchilarning 1-dars vaqti, kelgan/ketgan soati, kechikishi va 1–8-soatda maktab hududida bo'lganligi</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <button onclick="setSchoolCenterHere()" class="px-3.5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
-                <i class="fa-solid fa-location-crosshairs"></i> <span>Joriy joylashuv + Wi-Fi ni saqlash</span>
-              </button>
-              <button onclick="exportTeachersLocationDailyExcel()" class="px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
-                <i class="fa-solid fa-file-excel"></i> <span>Vaqt Hisoboti (Excel)</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-slate-200/60">
-            <div>
-              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Kenglik (Latitude)</label>
-              <input type="number" step="any" id="schoolLatInput" placeholder="39.654321" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold" />
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Uzunlik (Longitude)</label>
-              <input type="number" step="any" id="schoolLngInput" placeholder="66.959722" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold" />
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Radius (metr)</label>
-              <input type="number" id="schoolRadiusInput" value="250" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold" />
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Maktab Wi-Fi IP</label>
-              <input type="text" id="schoolIpInput" placeholder="Avto yoki IP..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold" />
-            </div>
-            <div class="col-span-2 sm:col-span-1 flex items-end">
-              <button onclick="saveManualSchoolLocationSettings()" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition">
-                Qo'lda saqlash
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- O'qituvchilar Joylashuv va Vaqt Jadvali -->
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="p-4 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-3">
-            <h3 class="text-xs sm:text-sm font-extrabold text-slate-800">O'qituvchilarning Kunlik Kelish-Ketish va Dars Soatlari Monitoringi</h3>
-            <input type="text" id="searchXodim2Input" oninput="renderTeachersLocationTable()" placeholder="O'qituvchi ismi yoki logini..." class="w-full sm:w-64 px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none" />
-          </div>
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[200px]">O'qituvchi F.I.SH</th>
-                  <th class="p-3 text-center">1-darsi</th>
-                  <th class="p-3 text-center">Maktabga keldi</th>
-                  <th class="p-3 text-center">Kechikish</th>
-                  <th class="p-3 text-center">Darsda tashqarida</th>
-                  <th class="p-3 text-center">Ketdi</th>
-                  <th class="p-3 text-center">Joriy Holat</th>
-                  <th class="p-2 text-center">1-soat</th>
-                  <th class="p-2 text-center">2-soat</th>
-                  <th class="p-2 text-center">3-soat</th>
-                  <th class="p-2 text-center">4-soat</th>
-                  <th class="p-2 text-center">5-soat</th>
-                  <th class="p-2 text-center">6-soat</th>
-                  <th class="p-2 text-center">7-soat</th>
-                  <th class="p-2 text-center">8-soat</th>
-                </tr>
-              </thead>
-              <tbody id="teachersLocationTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 2.2: DARS JADVALI VA QO'NG'IROQLAR VAQTI ==================== -->
-      <section id="tabScheduleManage" class="space-y-4 sm:space-y-6 hidden">
-        <!-- Qo'ng'iroqlar Vaqti (45 daqiqa dars, 5 daqiqa tanaffus, 5-soatdan keyin 45 daqiqa tushlik) -->
-        <div class="eye-card p-4 sm:p-6 rounded-3xl space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Qo'ng'iroqlar Vaqti va Haftalik Dars Jadvali</h2>
-              <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Har bir dars soatining boshlanish/tugash vaqti (10 va 5 daqiqa qolganda o'qituvchiga eslatma yuboriladi)</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <button onclick="resetDefaultBellTimes()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition">
-                Standart vaqt (08:30)
-              </button>
-              <button onclick="saveBellTimesSettings()" class="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
-                <i class="fa-solid fa-clock"></i> Vaqtlarni saqlash
-              </button>
-            </div>
-          </div>
-
-          <div id="bellTimesGrid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2"></div>
-        </div>
-
-        <!-- Haftalik Interaktiv Dars Jadvali -->
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="p-4 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-1.5 flex-wrap" id="scheduleDayButtons">
-              <button onclick="selectScheduleEditorDay(1)" id="schedDayBtn_1" class="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-teal-700 text-white">Dushanba</button>
-              <button onclick="selectScheduleEditorDay(2)" id="schedDayBtn_2" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Seshanba</button>
-              <button onclick="selectScheduleEditorDay(3)" id="schedDayBtn_3" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Chorshanba</button>
-              <button onclick="selectScheduleEditorDay(4)" id="schedDayBtn_4" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Payshanba</button>
-              <button onclick="selectScheduleEditorDay(5)" id="schedDayBtn_5" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Juma</button>
-              <button onclick="selectScheduleEditorDay(6)" id="schedDayBtn_6" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Shanba</button>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <button onclick="downloadScheduleTemplate()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 transition">
-                <i class="fa-solid fa-download"></i> Shablon
-              </button>
-              <input type="file" id="scheduleExcelInput" accept=".xlsx, .xls" class="hidden" onchange="handleScheduleUpload(event)" />
-              <button onclick="document.getElementById('scheduleExcelInput').click()" class="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-file-import"></i> Jadvalni Exceldan yuklash
-              </button>
-              <button onclick="clearAllSchedules()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition">
-                <i class="fa-solid fa-trash-can"></i> Tozalash
-              </button>
-            </div>
-          </div>
-
-          <div class="p-3 bg-slate-50/70 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-2">
-            <span id="scheduleFileStatusText" class="text-xs font-bold text-slate-500">Faqat o'qituvchilar ro'yxati ko'rsatilgan (ishchilar kirmaydi)</span>
-            <input type="text" id="searchScheduleTeacherInput" oninput="renderInteractiveScheduleTable()" placeholder="O'qituvchini qidiring..." class="w-full sm:w-64 px-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none" />
-          </div>
-
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[210px]">O'qituvchi F.I.SH</th>
-                  <th class="p-2 text-center">1-soat</th>
-                  <th class="p-2 text-center">2-soat</th>
-                  <th class="p-2 text-center">3-soat</th>
-                  <th class="p-2 text-center">4-soat</th>
-                  <th class="p-2 text-center">5-soat</th>
-                  <th class="p-2 text-center">6-soat</th>
-                  <th class="p-2 text-center">7-soat</th>
-                  <th class="p-2 text-center">8-soat</th>
-                </tr>
-              </thead>
-              <tbody id="interactiveScheduleTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 2.3: O'QITUVCHILAR OYLIK DARS SOATLARI HISOBOTI ==================== -->
-      <section id="tabMonthlyReport" class="space-y-4 sm:space-y-6 hidden">
-        <div class="eye-card p-4 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base sm:text-xl font-extrabold text-slate-800">O'qituvchilarning Haftalik va Oylik Dars Soatlari Tahlili</h2>
-            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Faqat o'qituvchilarning 4 haftalik dars yuklamasi, o'tilgan va qoldirilgan soatlari (0% dan 100% gacha)</p>
-          </div>
-          <button onclick="exportMonthlyTeacherHoursExcel()" class="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
-            <i class="fa-solid fa-file-excel"></i> Oylik Dars Soatlari (Excel)
-          </button>
-        </div>
-
-        <div class="eye-card p-4 sm:p-5 rounded-3xl">
-          <h3 class="text-xs sm:text-sm font-extrabold text-slate-800 mb-3">O'qituvchilarning O'tilgan va Qoldirilgan Dars Soatlari Diagrammasi</h3>
-          <div class="h-72"><canvas id="monthlyHoursChart"></canvas></div>
-        </div>
-
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[200px]">O'qituvchi F.I.SH</th>
-                  <th class="p-3 text-center">Haftalik Yuklama</th>
-                  <th class="p-3 text-center">1-Hafta</th>
-                  <th class="p-3 text-center">2-Hafta</th>
-                  <th class="p-3 text-center">3-Hafta</th>
-                  <th class="p-3 text-center">4-Hafta</th>
-                  <th class="p-3 text-center">Oylik Reja</th>
-                  <th class="p-3 text-center">Jami O'tildi</th>
-                  <th class="p-3 text-center">O'tilmagan Soat</th>
-                  <th class="p-3 text-center">Bajarilish %</th>
-                </tr>
-              </thead>
-              <tbody id="monthlyTeacherHoursTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 2.4: O'QITUVCHILAR RO'YXATI VA LOGIN/PAROLLAR ==================== -->
-      <section id="tabTeachersManage" class="space-y-4 hidden">
-        <div class="eye-card p-4 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Maktab O'qituvchilari va Sinf Rahbarlari Boshqaruvi</h2>
-            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">O'qituvchilarning login, parol va sinf rahbarligi ma'lumotlari</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <button onclick="exportTeachersCredentialsExcel()" class="px-3.5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
-              <i class="fa-solid fa-file-excel"></i> Login-Parollar (Excel)
-            </button>
-            <button onclick="openTeacherFormModal()" class="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
-              <i class="fa-solid fa-user-plus"></i> O'qituvchi qo'shish
-            </button>
-          </div>
-        </div>
-
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="p-4 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-3">
-            <span id="teachersCountLabel" class="text-xs font-extrabold text-slate-600">Jami o'qituvchilar: 0 nafar</span>
-            <input type="text" id="searchTeachersInput" oninput="renderTeachersManageTable()" placeholder="O'qituvchi ismi, sinfi yoki logini..." class="w-full sm:w-64 px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none" />
-          </div>
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[220px]">O'qituvchi F.I.SH</th>
-                  <th class="p-3">Roli va Biriktirilgan Sinfi</th>
-                  <th class="p-3">Login</th>
-                  <th class="p-3">Parol</th>
-                  <th class="p-3 text-center">Bugun Keldim / Ketdim</th>
-                  <th class="p-3 text-right">Amal</th>
-                </tr>
-              </thead>
-              <tbody id="teachersManageTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 3.1: ISHCHI-XODIMLAR SMENA JADVALI VA OYLIK HISOBOTI ==================== -->
-      <section id="tabWorkersManage" class="space-y-4 sm:space-y-6 hidden">
-        <div class="eye-card p-4 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Maktab Ishchi-Xodimlari Smena va Davomat Boshqaruvi</h2>
-            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Farrosh, qorovul, kutubxonachi, o'tin yoquvchi va texnik xodimlar uchun alohida kelish-ketish soatlari hamda oylik hisobot</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button onclick="downloadWorkersTemplateExcel()" class="flex-1 sm:flex-none px-3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <i class="fa-solid fa-download"></i> Shablon
-            </button>
-            <input type="file" id="workersExcelInput" accept=".xlsx, .xls" class="hidden" onchange="handleWorkersExcelImport(event)" />
-            <button onclick="document.getElementById('workersExcelInput').click()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-file-import"></i> Excel Import
-            </button>
-            <button onclick="exportWorkersMonthlyExcel()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-file-excel"></i> Oylik Hisobot (Export)
-            </button>
-            <button onclick="openWorkerFormModal()" class="w-full sm:w-auto px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-user-plus"></i> Ishchi qo'shish
-            </button>
-          </div>
-        </div>
-
-        <!-- Ommaviy Smena Vaqti Biriktirish Paneli -->
-        <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-teal-200/70">
-          <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
-            <i class="fa-solid fa-business-time text-teal-700 text-base"></i>
-            <span>Barcha ishchilarga tezkor smena vaqti o'rnatish:</span>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <select id="bulkWorkerJobSelect" onchange="onBulkWorkerPresetChange(this.value)" class="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold">
-              <option value="Maktab xodimi">Maktab xodimi (08:00 - 17:00)</option>
-              <option value="Farrosh">Farrosh (07:30 - 16:00)</option>
-              <option value="Kutubxonachi">Kutubxonachi (08:30 - 17:00)</option>
-              <option value="Qorovul">Kunduzgi Qorovul (07:00 - 18:00)</option>
-              <option value="O'tin yoquvchi">O'tin yoquvchi (07:00 - 18:00)</option>
-              <option value="Tungi qorovul">Tungi Qorovul (18:00 - 08:00)</option>
-            </select>
-            <input type="time" id="bulkWorkerStart" value="08:00" class="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold" />
-            <span class="text-xs text-slate-400">dan</span>
-            <input type="time" id="bulkWorkerEnd" value="17:00" class="border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold" />
-            <span class="text-xs text-slate-400">gacha</span>
-            <button onclick="applyBulkShiftToAllWorkers()" class="px-3.5 py-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition">
-              Barchasiga qo'llash
-            </button>
-          </div>
-        </div>
-
-        <!-- Ishchilar Kunlik Ko'rsatkichlari -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Jami Ishchi-Xodimlar</p>
-              <h3 id="statWorkersTotal" class="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">0 nafar</h3>
-            </div>
-            <div class="w-9 h-9 bg-sky-50 text-sky-700 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-id-card-clip"></i></div>
-          </div>
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">"Keldim" Bosganlar</p>
-              <h3 id="statWorkersCheckedIn" class="text-lg sm:text-xl font-extrabold text-emerald-700 mt-0.5">0 nafar</h3>
-            </div>
-            <div class="w-9 h-9 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-door-open"></i></div>
-          </div>
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">"Ketdim" Bosganlar</p>
-              <h3 id="statWorkersCheckedOut" class="text-lg sm:text-xl font-extrabold text-teal-700 mt-0.5">0 nafar</h3>
-            </div>
-            <div class="w-9 h-9 bg-teal-50 text-teal-700 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
-          </div>
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Kunlik O'rtacha Foiz</p>
-              <h3 id="statWorkersAvgPct" class="text-lg sm:text-xl font-extrabold text-teal-700 mt-0.5">0.0%</h3>
-            </div>
-            <div class="w-9 h-9 bg-teal-50 text-teal-700 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-chart-pie"></i></div>
-          </div>
-        </div>
-
-        <!-- Ishchilar Kunlik Smena Jadvali -->
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="p-4 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-3">
-            <select id="filterWorkersRole" onchange="renderWorkersManageSection()" class="bg-slate-100 border-0 rounded-xl px-3 py-2 text-xs font-bold">
-              <option value="ALL">Barcha Ishchi-Xodimlar</option>
-              <option value="present">🟢 Bugun ishga kelganlar</option>
-              <option value="absent">⚪ Bugun kelmaganlar (0%)</option>
-              <option value="suspicious">🔴 Kechikkan / Erta ketgan / Gumonlilar</option>
-            </select>
-            <input type="text" id="searchWorkersInput" oninput="renderWorkersManageSection()" placeholder="Ishchi F.I.SH, lavozimi yoki logini..." class="w-full sm:w-64 px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none" />
-          </div>
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[200px]">Ishchi F.I.SH</th>
-                  <th class="p-3 min-w-[150px]">Lavozimi</th>
-                  <th class="p-3 text-center min-w-[210px]">Smena Vaqti (Kelish – Ketish)</th>
-                  <th class="p-3">Login / Parol</th>
-                  <th class="p-3 text-center">Keldim</th>
-                  <th class="p-3 text-center">Kechikish</th>
-                  <th class="p-3 text-center">Ketdim</th>
-                  <th class="p-3 text-center">Erta Ketish</th>
-                  <th class="p-3 text-center">Ishlagan Soati</th>
-                  <th class="p-3 text-center">Kunlik %</th>
-                  <th class="p-3 text-center">Yakuniy Holat</th>
-                  <th class="p-3 text-right">Amal</th>
-                </tr>
-              </thead>
-              <tbody id="workersManageTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Ishchilarning 4 Haftalik (Oylik) Smena Soatlari Jadvali -->
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="p-4 border-b border-slate-200/70">
-            <h3 class="text-xs sm:text-sm font-extrabold text-slate-800">Ishchi-Xodimlarning 4 Haftalik (Oylik) Smena Soatlari va Foizi</h3>
-            <p class="text-[11px] text-slate-400">Har bir ishchining belgilangan smena soati bo'yicha oylik rejasi va amalda ishlagan soatlari (0.0% dan 100.0% gacha)</p>
-          </div>
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[200px]">Ishchi F.I.SH</th>
-                  <th class="p-3">Lavozimi</th>
-                  <th class="p-3 text-center">Kunlik Smena</th>
-                  <th class="p-3 text-center">1-Hafta</th>
-                  <th class="p-3 text-center">2-Hafta</th>
-                  <th class="p-3 text-center">3-Hafta</th>
-                  <th class="p-3 text-center">4-Hafta</th>
-                  <th class="p-3 text-center">Oylik Reja</th>
-                  <th class="p-3 text-center text-emerald-700">Amalda Ishladi</th>
-                  <th class="p-3 text-center">Bajarilish %</th>
-                </tr>
-              </thead>
-              <tbody id="workersMonthlySummaryTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 4.1: QURILMALAR VA XAVFSIZLIK NAZORATI ==================== -->
-      <section id="tabDevicesManage" class="space-y-4 sm:space-y-6 hidden">
-        <div class="eye-card p-4 sm:p-6 rounded-3xl flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-base sm:text-xl font-extrabold text-slate-800">Xodimlar Qurilmalari va Xavfsizlik Nazorati</h2>
-              <span id="deviceLockModeBadge" class="px-2.5 py-0.5 rounded-lg text-[11px] font-bold badge-present">Kuzatuv rejimi</span>
-            </div>
-            <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">Kim nechta telefondan (1, 2, 3 ta) foydalanayotgani, qurilma modeli va bitta telefondan bir necha profilga kirishni (o'rniga kirishni) tutish</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <button onclick="toggleSingleDeviceLockSetting()" id="btnToggleDeviceLock" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-lock-open"></i> <span>2-qurilmani bloklash: O'chiq</span>
-            </button>
-            <button onclick="exportDevicesReportExcel()" class="flex-1 sm:flex-none px-3.5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-file-excel"></i> Qurilmalar (Excel)
-            </button>
-            <button onclick="resetAllAttendanceToZeroForMorning()" class="w-full sm:w-auto px-3.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
-              <i class="fa-solid fa-rotate-left"></i> Tizimni 0 dan boshlash
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Faol Xodimlar</p>
-              <h3 id="statDevActiveUsers" class="text-lg sm:text-xl font-extrabold text-slate-800 mt-0.5">0 nafar</h3>
-            </div>
-            <div class="w-9 h-9 bg-sky-50 text-sky-700 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-mobile-screen-button"></i></div>
-          </div>
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">1 ta Qurilmali (Toza)</p>
-              <h3 id="statDevSingle" class="text-lg sm:text-xl font-extrabold text-emerald-700 mt-0.5">0 nafar</h3>
-            </div>
-            <div class="w-9 h-9 bg-emerald-50 text-emerald-700 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-shield-halved"></i></div>
-          </div>
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">2+ Qurilmali Xodimlar</p>
-              <h3 id="statDevMulti" class="text-lg sm:text-xl font-extrabold text-amber-600 mt-0.5">0 nafar</h3>
-            </div>
-            <div class="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-clone"></i></div>
-          </div>
-          <div class="eye-card p-3.5 sm:p-4 rounded-2xl flex items-center justify-between">
-            <div>
-              <p class="text-[10px] uppercase font-bold text-slate-400">Bitta Telefondan 2+ Profil</p>
-              <h3 id="statDevShared" class="text-lg sm:text-xl font-extrabold text-rose-600 mt-0.5">0 ta</h3>
-            </div>
-            <div class="w-9 h-9 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-sm"><i class="fa-solid fa-user-secret"></i></div>
-          </div>
-        </div>
-
-        <div class="eye-card rounded-3xl overflow-hidden">
-          <div class="p-4 border-b border-slate-200/70 flex flex-wrap items-center justify-between gap-3">
-            <select id="filterDevicesType" onchange="renderDevicesManageSection()" class="bg-slate-100 border-0 rounded-xl px-3 py-2 text-xs font-bold">
-              <option value="ALL">Barcha O'qituvchilar va Ishchilar</option>
-              <option value="multi">🟡 2 va undan ko'p qurilmadan kirganlar</option>
-              <option value="shared">🚨 Bitta telefondan bir necha profilga kirganlar</option>
-            </select>
-            <input type="text" id="searchDevicesInput" oninput="renderDevicesManageSection()" placeholder="Xodim yoki telefon modelini qidiring..." class="w-full sm:w-64 px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none" />
-          </div>
-          <div class="overflow-x-auto table-container">
-            <table class="w-full text-left text-xs whitespace-nowrap">
-              <thead class="bg-slate-100/80 text-slate-500 uppercase font-bold border-b text-[11px]">
-                <tr>
-                  <th class="p-3 w-10 text-center">№</th>
-                  <th class="p-3 min-w-[200px]">Xodim F.I.SH</th>
-                  <th class="p-3">Bo'limi / Lavozimi</th>
-                  <th class="p-3 text-center">Qurilmalar Soni</th>
-                  <th class="p-3 min-w-[280px]">Foydalanilgan Qurilma Modeli va Kirgan Vaqti</th>
-                  <th class="p-3 text-center">Xavfsizlik Holati</th>
-                  <th class="p-3 text-right">Amal</th>
-                </tr>
-              </thead>
-              <tbody id="devicesManageTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== BO'LIM 5.1: SHAXSIY PROFIL (O'QITUVCHI VA ISHCHI UCHUN) ==================== -->
-      <section id="tabTeacherProfile" class="max-w-lg mx-auto w-full hidden">
-        <div class="eye-card p-6 sm:p-8 rounded-3xl space-y-5">
-          <div class="flex items-center gap-3.5 border-b border-slate-200/70 pb-4">
-            <div class="w-12 h-12 rounded-2xl bg-teal-700 text-white flex items-center justify-center text-xl font-black">
-              <i class="fa-solid fa-user-shield"></i>
-            </div>
-            <div>
-              <h2 class="text-base sm:text-lg font-extrabold text-slate-800">Shaxsiy Profil Sozlamalari</h2>
-              <p class="text-xs text-slate-400">Ism-familiya, login va shaxsiy parolni yangilash</p>
-            </div>
-          </div>
-
-          <form onsubmit="saveTeacherProfile(event)" class="space-y-4">
-            <div>
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">F.I.SH (Ism va Familiya)</label>
-              <input type="text" id="profileNameInput" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold focus:ring-2 focus:ring-teal-600 focus:outline-none" />
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Tizimga Kirish Logini</label>
-              <input type="text" id="profileLoginInput" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-teal-600 focus:outline-none" />
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Shaxsiy Parol</label>
-              <input type="text" id="profilePassInput" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-teal-600 focus:outline-none" />
-            </div>
-            <div id="profileSaveMsg" class="text-xs font-bold text-center hidden"></div>
-            <button type="submit" class="w-full py-3.5 bg-teal-700 hover:bg-teal-800 active:bg-teal-900 text-white font-extrabold rounded-xl shadow-sm transition text-xs">
-              <i class="fa-solid fa-floppy-disk mr-1.5"></i> O'zgarishlarni Saqlash
-            </button>
-          </form>
-        </div>
-      </section>
-
-    </main>
-  </div>
-
-  <!-- ==================== 4. MODALLAR VA BILDIRISHNOMA OYNALARI ==================== -->
-
-  <!-- A) O'quvchi Qo'shish / Tahrirlash Modali -->
-  <div id="studentFormModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="eye-card w-full max-w-md rounded-3xl p-6 space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-200/70 pb-3">
-        <h3 id="studentFormModalTitle" class="text-sm font-extrabold text-slate-800">O'quvchi Qo'shish</h3>
-        <button onclick="closeStudentFormModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">O'quvchi F.I.SH</label>
-          <input type="text" id="formStudentName" placeholder="Familiya Ism Sharif" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:ring-2 focus:ring-teal-600 focus:outline-none" />
-        </div>
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">Sinfi</label>
-          <select id="formStudentClass" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:ring-2 focus:ring-teal-600 focus:outline-none"></select>
-        </div>
-      </div>
-      <div class="flex gap-2 pt-2">
-        <button onclick="closeStudentFormModal()" class="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">Bekor qilish</button>
-        <button onclick="saveStudentForm()" class="flex-1 py-2.5 bg-teal-700 text-white rounded-xl text-xs font-bold">Saqlash</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- B) O'qituvchi Qo'shish / Tahrirlash Modali -->
-  <div id="teacherFormModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="eye-card w-full max-w-md rounded-3xl p-6 space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-200/70 pb-3">
-        <h3 id="teacherFormModalTitle" class="text-sm font-extrabold text-slate-800">O'qituvchi Ma'lumotlari</h3>
-        <button onclick="closeTeacherFormModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">O'qituvchi F.I.SH</label>
-          <input type="text" id="formTeacherName" placeholder="Familiya Ism" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold" />
-        </div>
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">Tizimdagi Roli</label>
-          <select id="formTeacherRole" onchange="onTeacherRoleSelectChange()" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold">
-            <option value="subject">Fan o'qituvchisi</option>
-            <option value="class_leader">Sinf rahbari + Fan o'qituvchisi</option>
-            <option value="admin">Maktab Administratori</option>
-          </select>
-        </div>
-        <div id="formTeacherClassWrapper" class="hidden">
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">Rahbarlik qiladigan sinfi</label>
-          <select id="formTeacherClass" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold"></select>
-        </div>
-        <div class="grid grid-cols-2 gap-2.5">
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">Login</label>
-            <input type="text" id="formTeacherLogin" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold" />
-          </div>
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">Parol</label>
-            <input type="text" id="formTeacherPass" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold" />
-          </div>
-        </div>
-      </div>
-      <div class="flex gap-2 pt-2">
-        <button onclick="closeTeacherFormModal()" class="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">Bekor qilish</button>
-        <button onclick="saveTeacherForm()" class="flex-1 py-2.5 bg-teal-700 text-white rounded-xl text-xs font-bold">Saqlash</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- V) Ishchi-Xodim Qo'shish / Tahrirlash Modali (Alohida Smena Vaqti Bilan) -->
-  <div id="workerFormModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="eye-card w-full max-w-md rounded-3xl p-6 space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-200/70 pb-3">
-        <h3 id="workerFormModalTitle" class="text-sm font-extrabold text-slate-800">Ishchi-Xodim Ma'lumotlari</h3>
-        <button onclick="closeWorkerFormModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">Ishchi F.I.SH</label>
-          <input type="text" id="formWorkerName" placeholder="Familiya Ism Sharif" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold" />
-        </div>
-        <div>
-          <label class="block text-[11px] font-bold text-slate-500 mb-1">Lavozimi</label>
-          <select id="formWorkerJobTitle" onchange="onWorkerModalRoleChange(this.value)" class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold">
-            <option value="Maktab xodimi">Maktab xodimi</option>
-            <option value="Farrosh">Farrosh</option>
-            <option value="Kutubxonachi">Kutubxonachi</option>
-            <option value="Qorovul">Qorovul (Kunduzgi)</option>
-            <option value="O'tin yoquvchi">O'tin yoquvchi</option>
-            <option value="Tungi qorovul">Tungi qorovul (Smena)</option>
-            <option value="Tungi o'tin yoquvchi">Tungi o'tin yoquvchi</option>
-          </select>
-        </div>
-        <div class="grid grid-cols-2 gap-2.5">
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">Kelish vaqti (dan)</label>
-            <input type="time" id="formWorkerStart" value="08:00" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold" />
-          </div>
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">Ketish vaqti (gacha)</label>
-            <input type="time" id="formWorkerEnd" value="17:00" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold" />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2.5">
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">Login</label>
-            <input type="text" id="formWorkerLogin" placeholder="Avto yasaladi..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold" />
-          </div>
-          <div>
-            <label class="block text-[11px] font-bold text-slate-500 mb-1">Parol</label>
-            <input type="text" id="formWorkerPass" value="123456" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold" />
-          </div>
-        </div>
-      </div>
-      <div class="flex gap-2 pt-2">
-        <button onclick="closeWorkerFormModal()" class="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">Bekor qilish</button>
-        <button onclick="saveWorkerForm()" class="flex-1 py-2.5 bg-teal-700 text-white rounded-xl text-xs font-bold">Saqlash</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- G) Sababli O'quvchi Izohini Kiritish Modali -->
-  <div id="excuseReasonModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="eye-card w-full max-w-sm rounded-3xl p-6 space-y-4">
-      <h3 class="text-sm font-extrabold text-slate-800">Sababli Qoldirish Izohi</h3>
-      <p id="excuseStudentNameLabel" class="text-xs text-slate-500 font-semibold"></p>
-      <input type="text" id="excuseReasonInput" placeholder="Masalan: Shifokor ma'lumotnomasi bor..." class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:ring-2 focus:ring-teal-600 focus:outline-none" />
-      <div class="flex gap-2">
-        <button onclick="closeExcuseReasonModal()" class="flex-1 py-2.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">Bekor qilish</button>
-        <button onclick="confirmExcuseReason()" class="flex-1 py-2.5 bg-sky-600 text-white rounded-xl text-xs font-bold">Saqlash</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- D) Oxirgi Dars Tugaganda Avtomatik Yopilish Modali -->
-  <div id="autoCloseModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
-    <div class="eye-card w-full max-w-sm rounded-3xl p-6 text-center space-y-4">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center text-2xl">
-        <i class="fa-solid fa-flag-checkered"></i>
-      </div>
-      <h3 class="text-base font-extrabold text-slate-800">Bugungi darslaringiz yakunlandi!</h3>
-      <p class="text-xs text-slate-500 leading-relaxed">
-        Joylashuv kuzatuvi to'xtatildi. Ilova <b id="autoCloseCountdown" class="text-teal-700 text-sm">10</b> soniyadan so'ng avtomatik yopiladi.
-      </p>
-      <button onclick="dismissAutoCloseAndStay()" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold">
-        Ilovada qolish
-      </button>
-    </div>
-  </div>
-
-  <!-- E) Dars va Smena Oldi (10 va 5 daqiqa) Ovozli Eslatma Toast Oynasi -->
-  <div id="lessonReminderToast" class="fixed top-4 right-4 left-4 sm:left-auto sm:w-96 bg-teal-900 text-white p-4 rounded-3xl shadow-2xl z-50 hidden border border-teal-400/40">
-    <div class="flex items-start gap-3">
-      <div class="w-10 h-10 rounded-2xl bg-amber-400 text-slate-900 flex-shrink-0 flex items-center justify-center text-lg font-black animate-bounce">
-        <i class="fa-solid fa-bell"></i>
-      </div>
-      <div class="flex-1">
-        <h4 id="lessonReminderTitle" class="text-xs sm:text-sm font-extrabold text-amber-300">Eslatma!</h4>
-        <p id="lessonReminderBody" class="text-xs text-teal-50 mt-1 leading-relaxed"></p>
-      </div>
-      <button onclick="document.getElementById('lessonReminderToast').classList.add('hidden')" class="text-teal-200 hover:text-white p-1">
-        <i class="fa-solid fa-xmark text-base"></i>
-      </button>
-    </div>
-  </div>
-  <!-- ==================== JAVASCRIPT VA FIREBASE MANTIQI (TEZLASHTIRILGAN ARXITEKTURA) ==================== -->
-  <script>
     // ==================== 1. KO'ZNI HIMOYALASH (TUNGI REJIM) VA PWA O'RNATISH ====================
     function applyEyeCareTheme(isDark) {
       const icon = document.getElementById('eyeCareIcon');
@@ -1202,7 +64,7 @@
         if (icon) icon.className = "fa-solid fa-moon text-indigo-600";
         if (label) label.innerText = "Tungi rejim";
       }
-      requestSmartRender();
+      if (currentUser) requestSmartRender();
     }
 
     function toggleEyeCareTheme() {
@@ -1215,8 +77,6 @@
       applyEyeCareTheme(true);
     }
 
-    let deferredPwaPrompt = null;
-
     function generateAppIconDataUrl(size = 192) {
       const canvas = document.createElement('canvas');
       canvas.width = size;
@@ -1224,7 +84,11 @@
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#0f766e';
       ctx.beginPath();
-      ctx.roundRect(0, 0, size, size, size * 0.24);
+      if (ctx.roundRect) {
+        ctx.roundRect(0, 0, size, size, size * 0.24);
+      } else {
+        ctx.rect(0, 0, size, size);
+      }
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.font = `900 ${Math.floor(size * 0.44)}px sans-serif`;
@@ -1274,7 +138,7 @@
       }
     }
 
-    // ==================== 2. FIREBASE ULANISHI VA GLOBAL O'ZGARUVCHILAR ====================
+    // ==================== 2. FIREBASE ULANISHI VA SOZLAMALAR ====================
     const firebaseConfig = {
       databaseURL: "https://timk-248cb-default-rtdb.firebaseio.com/"
     };
@@ -1283,55 +147,6 @@
     }
     const db = firebase.database();
 
-    function formatDateLocal(d) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    }
-
-    const todayDayStr = formatDateLocal(new Date());
-    let currentDayStr = todayDayStr;
-    let currentUser = null;
-    let activeAdminCategory = 'students';
-    let activeTabId = 'tabAnalytics';
-
-    // Tezkor Xotira Keshlari (O'qituvchilar va Ishchilar alohida!)
-    let cachedStudents = {};
-    let cachedTeachers = {}; // Faqat 33 nafar O'qituvchi va Sinf rahbarlari
-    let cachedWorkers = {};  // Faqat Smena xodimlari (Administrator xodim, Kutubxonachi, Ishchi va Maktab xodimlari)
-    let cachedAttendance = {};
-    let cachedCheckInOut = {};
-    let cachedSchedules = {};
-    let cachedBellTimes = {};
-    let cachedSchoolLocation = null;
-    let cachedDevicesMap = {};
-    let isSingleDeviceLockActive = false;
-
-    let activeAttendanceRef = null;
-    let activeCheckInOutRef = null;
-    let ratingChartInstance = null;
-    let dynamicChartInstance = null;
-    let monthlyChartInstance = null;
-
-    let editingStudentId = null;
-    let editingTeacherId = null;
-    let editingWorkerId = null;
-    let pendingExcuseStudentId = null;
-    let selectedScheduleEditorDay = (new Date().getDay() >= 1 && new Date().getDay() <= 6) ? new Date().getDay() : 1;
-
-    // Joylashuv va Orqa fon o'zgaruvchilari
-    let geoWatchId = null;
-    let latestTeacherAreaState = 'unknown';
-    let currentDeviceIp = '';
-    let silentAudioCtx = null;
-    let silentOscillator = null;
-    let wakeLockSentinel = null;
-    let autoCloseCountdownTimer = null;
-    let autoCloseDismissedToday = false;
-    let lastFirebaseGeoWriteTs = 0;
-
-    // Standart sinflar va qo'ng'iroqlar (45 daq dars, 5 daq tanaffus, 5-soatdan keyin 45 daq tushlik)
     const BASE_CLASSES = ['5-A', '5-B', '6-A', '6-B', '7-A', '7-B', '8-A', '8-B', '9-A', '9-B', '9-V', '10-A', '10-B', '11-A', '11-B'];
     let ORDERED_CLASSES = [...BASE_CLASSES];
     const ALL_ATT_KEYS = ['ERT', '1', '2', '3', '4', '5', '6', '7', '8'];
@@ -1348,7 +163,6 @@
     };
     cachedBellTimes = JSON.parse(JSON.stringify(DEFAULT_BELL_TIMES));
 
-    // Smena xodimlari uchun standart ish vaqti shablonlari
     const WORKER_ROLE_PRESETS = {
       "Administrator xodim": { start: "08:00", end: "17:00" },
       "Kutubxonachi":        { start: "08:30", end: "17:00" },
@@ -1361,7 +175,7 @@
       "Tungi o'tin yoquvchi":{ start: "18:00", end: "08:00" }
     };
 
-    // ==================== 3. EXCEL FAYLDAN KIRITILGAN 33 NAFAR O'QITUVCHI BAZASI ====================
+    // ==================== 3. 33 NAFAR O'QITUVCHI BAZASI ====================
     const INITIAL_TEACHERS = [
       { id: "t_2",  name: "Djurımbaev Paraxat Alimbaevich",           role: "subject",      class: "",     login: "djurimbaev",    pass: "123456" },
       { id: "t_3",  name: "Bazarbaeva Gulnaz Joldasbayevna",          role: "class_leader", class: "11-A", login: "bazarbaeva_g",  pass: "123456" },
@@ -1398,7 +212,7 @@
       { id: "t_36", name: "Bekniyazov Sanjarbek Baxadir o'g'li",      role: "subject",      class: "",     login: "bekniyazov_b",  pass: "123456" }
     ];
 
-    // ==================== 4. SMENA BO'YICHA ISHLOVCHI XODIMLAR (ADMIN, KUTUBXONACHI, ISHCHI VA MAKTAB XODIMLARI) ====================
+    // ==================== 4. SMENA BO'YICHA ISHLOVCHI XODIMLAR ====================
     const INITIAL_WORKERS = [
       { id: "admin", name: "Bosh Administrator",                  role: "admin",  jobTitle: "Administrator xodim", workStart: "08:00", workEnd: "17:00", login: "admin",             pass: "admin123" },
       { id: "w_31",  name: "Hakimova Oringul Aminbaevna",         role: "admin",  jobTitle: "Administrator xodim", workStart: "08:00", workEnd: "17:00", login: "oringulaminbaevna", pass: "123456" },
@@ -1425,17 +239,18 @@
       { id: "w_56",  name: "Otepov Salamat Aqilbekovich",         role: "worker", jobTitle: "Maktab xodimi",       workStart: "08:00", workEnd: "17:00", login: "otepov_s",          pass: "123456" }
     ];
 
-    // ==================== 5. TEZKOR YANGILASH (DEBOUNCED LAZY RENDER) VA BAZA MIGRATSIYASI ====================
-    let smartRenderTimer = null;
+    // Sahifa ochilgan zahoti dastlabki login-parollarni xotiraga yuklaymiz
+    INITIAL_TEACHERS.forEach(t => { cachedTeachers[t.id] = { ...t }; });
+    INITIAL_WORKERS.forEach(w => { cachedWorkers[w.id] = { ...w }; });
 
+    // ==================== 5. TEZKOR YANGILASH VA BAZA SINXRONIZATSIYASI ====================
     function requestSmartRender() {
       if (smartRenderTimer) clearTimeout(smartRenderTimer);
       smartRenderTimer = setTimeout(() => {
-        renderActiveViewOnly();
+        if (typeof renderActiveViewOnly === 'function') renderActiveViewOnly();
       }, 120);
     }
 
-    // Barcha xodimlarni (O'qituvchilar + Smena xodimlari) bitta massivda olish (Login va Qurilmalar uchun)
     function getAllStaffCombined() {
       return [...Object.values(cachedTeachers), ...Object.values(cachedWorkers)];
     }
@@ -1453,19 +268,16 @@
     }
 
     function initDatabaseDefaults() {
-      // Qurilma IP manzilini aniqlash (Wi-Fi tekshiruvi uchun)
       fetch('https://api.ipify.org?format=json')
         .then(r => r.json())
         .then(d => { if (d && d.ip) currentDeviceIp = d.ip; })
         .catch(() => {});
 
-      // 1. O'qituvchilar va Ishchilarni toza ajratib sinxronlash
       db.ref('teachers').once('value', snap => {
         const rawTeachers = snap.val() || {};
         const cleanTeachersMap = {};
         const migratedWorkersMap = {};
 
-        // Avval bazadagi mavjud yozuvlarni tekshirib, ishchi/adminlarni ajratib olamiz
         Object.keys(rawTeachers).forEach(k => {
           const item = rawTeachers[k];
           if (!item || !item.login) return;
@@ -1485,9 +297,8 @@
           }
         });
 
-        // INITIAL_TEACHERS dagi 33 nafar o'qituvchini to'liq ta'minlaymiz
         INITIAL_TEACHERS.forEach(t => {
-          const existingKey = Object.keys(cleanTeachersMap).find(k => cleanTeachersMap[k].login.toLowerCase() === t.login.toLowerCase());
+          const existingKey = Object.keys(cleanTeachersMap).find(k => (cleanTeachersMap[k].login || '').toLowerCase() === t.login.toLowerCase());
           const targetId = existingKey || t.id;
           cleanTeachersMap[targetId] = {
             ...t,
@@ -1500,7 +311,6 @@
 
         db.ref('teachers').set(cleanTeachersMap);
 
-        // 2. Smena xodimlarini (INITIAL_WORKERS + migratsiya) db.ref('workers') ga yozamiz
         db.ref('workers').once('value', wSnap => {
           const existingWorkers = { ...migratedWorkersMap, ...(wSnap.val() || {}) };
           INITIAL_WORKERS.forEach(w => {
@@ -1520,15 +330,22 @@
         });
       });
 
-      // Real-vaqt tinglovchilari
       db.ref('teachers').on('value', snap => {
-        cachedTeachers = snap.val() || {};
+        const remote = snap.val() || {};
+        const merged = {};
+        INITIAL_TEACHERS.forEach(t => { merged[t.id] = { ...t }; });
+        Object.keys(remote).forEach(k => { if (remote[k]) merged[k] = remote[k]; });
+        cachedTeachers = merged;
         rebuildDynamicOrderedClasses();
         requestSmartRender();
       });
 
       db.ref('workers').on('value', snap => {
-        cachedWorkers = snap.val() || {};
+        const remote = snap.val() || {};
+        const merged = {};
+        INITIAL_WORKERS.forEach(w => { merged[w.id] = { ...w }; });
+        Object.keys(remote).forEach(k => { if (remote[k]) merged[k] = remote[k]; });
+        cachedWorkers = merged;
         requestSmartRender();
       });
 
@@ -1587,10 +404,8 @@
         requestSmartRender();
       });
     }
-    // ==================== 6. KIRISH (LOGIN), MAXFIY CREATOR VA SESSIYA BOSHQARUVI ====================
-    let clickCount = 0;
-    let clickTimer = null;
 
+    // ==================== 6. KIRISH (LOGIN), MAXFIY CREATOR VA SESSIYA BOSHQARUVI ====================
     function onLoginBtnClick(e) {
       if (e) e.preventDefault();
       clickCount++;
@@ -1602,8 +417,21 @@
           handleLogin();
         }
         clickCount = 0;
-      }, 260);
+      }, 250);
     }
+
+    // Login va parol maydonlarida Enter bosilganda darhol kirish
+    ['loginUsername', 'loginPassword'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            handleLogin();
+          }
+        });
+      }
+    });
 
     function openCreatorModal() {
       document.getElementById('creatorModal').classList.remove('hidden');
@@ -1627,7 +455,7 @@
       }
     }
 
- function handleLogin() {
+    function handleLogin() {
       const u = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
       const p = (document.getElementById('loginPassword').value || '').trim();
       const errEl = document.getElementById('loginErrorMsg');
@@ -1638,46 +466,15 @@
         return;
       }
 
-      // Firebase hali yuklanmagan bo'lsa ham darhol kirishi uchun dastlabki ro'yxatni birlashtiramiz
-      const teachersList = Object.keys(cachedTeachers).length > 0
-        ? Object.values(cachedTeachers)
-        : INITIAL_TEACHERS;
+      const allTeachers = [...Object.values(cachedTeachers), ...INITIAL_TEACHERS];
+      const allWorkers = [...Object.values(cachedWorkers), ...INITIAL_WORKERS];
 
-      const workersList = Object.keys(cachedWorkers).length > 0
-        ? Object.values(cachedWorkers)
-        : INITIAL_WORKERS;
-
-      // 1. O'qituvchilar bazasidan qidirish
-      const foundTeacher = teachersList.find(
-        t => (t.login || '').toLowerCase() === u && String(t.pass) === p
+      const foundTeacher = allTeachers.find(
+        t => t && (t.login || '').trim().toLowerCase() === u && String(t.pass).trim() === p
       );
 
-      // 2. Smena xodimlari (Ishchilar / Adminlar / Kutubxonachi) bazasidan qidirish
-      const foundWorker = workersList.find(
-        w => (w.login || '').toLowerCase() === u && String(w.pass) === p
-      );
-
-      const userObj = foundTeacher || foundWorker;
-
-      if (!userObj) {
-        errEl.innerText = "Login yoki parol noto'g'ri!";
-        errEl.classList.remove('hidden');
-        return;
-      }
-
-      errEl.classList.add('hidden');
-      currentUser = { ...userObj };
-      localStorage.setItem('school_active_user', JSON.stringify(currentUser));
-      showApp();
-    }
-      // 1. O'qituvchilar bazasidan qidirish
-      const foundTeacher = Object.values(cachedTeachers).find(
-        t => (t.login || '').toLowerCase() === u && String(t.pass) === p
-      );
-
-      // 2. Smena xodimlari (Ishchilar / Adminlar / Kutubxonachi) bazasidan qidirish
-      const foundWorker = Object.values(cachedWorkers).find(
-        w => (w.login || '').toLowerCase() === u && String(w.pass) === p
+      const foundWorker = allWorkers.find(
+        w => w && (w.login || '').trim().toLowerCase() === u && String(w.pass).trim() === p
       );
 
       const userObj = foundTeacher || foundWorker;
@@ -1702,7 +499,6 @@
       document.getElementById('loginScreen').classList.remove('hidden');
       document.getElementById('loginPassword').value = '';
     }
-
     // ==================== 7. 4-BLOKLI TARTIBLI NAVIGATSIYA VA "LAZY RENDER" (QOTMASLIK TIZIMI) ====================
     const ADMIN_CATEGORY_TABS = {
       students: [
