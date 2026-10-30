@@ -1627,7 +1627,7 @@
       }
     }
 
-   async function handleLogin() {
+   function handleLogin() {
       const u = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
       const p = (document.getElementById('loginPassword').value || '').trim();
       const errEl = document.getElementById('loginErrorMsg');
@@ -1638,39 +1638,28 @@
         return;
       }
 
-      errEl.classList.add('hidden');
+      // 1. O'qituvchilar bazasidan qidirish
+      const foundTeacher = Object.values(cachedTeachers).find(
+        t => (t.login || '').toLowerCase() === u && String(t.pass) === p
+      );
 
-      try {
-        // 1. Firebase'dan teachers va workers ma'lumotlarini bir vaqtda o'qib olamiz
-        const [tSnap, wSnap] = await Promise.all([
-          db.ref('teachers').once('value'),
-          db.ref('workers').once('value')
-        ]);
+      // 2. Smena xodimlari bazasidan qidirish
+      const foundWorker = Object.values(cachedWorkers).find(
+        w => (w.login || '').toLowerCase() === u && String(w.pass) === p
+      );
 
-        const teachersMap = tSnap.val() || {};
-        const workersMap = wSnap.val() || {};
+      const userObj = foundTeacher || foundWorker;
 
-        // 2. Qidiramiz
-        let found = Object.values(teachersMap).find(t => (t.login || '').toLowerCase() === u && String(t.pass) === p);
-        if (!found) {
-          found = Object.values(workersMap).find(w => (w.login || '').toLowerCase() === u && String(w.pass) === p);
-        }
-
-        if (!found) {
-          errEl.innerText = "Login yoki parol noto'g'ri!";
-          errEl.classList.remove('hidden');
-          return;
-        }
-
-        errEl.classList.add('hidden');
-        currentUser = { ...found };
-        localStorage.setItem('school_active_user', JSON.stringify(currentUser));
-        showApp();
-      } catch (err) {
-        console.error("Login xatoligi:", err);
-        errEl.innerText = "Tizimga ulanishda xatolik yuz berdi!";
+      if (!userObj) {
+        errEl.innerText = "Login yoki parol noto'g'ri!";
         errEl.classList.remove('hidden');
+        return;
       }
+
+      errEl.classList.add('hidden');
+      currentUser = { ...userObj };
+      localStorage.setItem('school_active_user', JSON.stringify(currentUser));
+      showApp();
     }
       // 1. O'qituvchilar bazasidan qidirish
       const foundTeacher = Object.values(cachedTeachers).find(
