@@ -1627,7 +1627,7 @@
       }
     }
 
-   function handleLogin() {
+ function handleLogin() {
       const u = (document.getElementById('loginUsername').value || '').trim().toLowerCase();
       const p = (document.getElementById('loginPassword').value || '').trim();
       const errEl = document.getElementById('loginErrorMsg');
@@ -1638,13 +1638,22 @@
         return;
       }
 
+      // Firebase hali yuklanmagan bo'lsa ham darhol kirishi uchun dastlabki ro'yxatni birlashtiramiz
+      const teachersList = Object.keys(cachedTeachers).length > 0
+        ? Object.values(cachedTeachers)
+        : INITIAL_TEACHERS;
+
+      const workersList = Object.keys(cachedWorkers).length > 0
+        ? Object.values(cachedWorkers)
+        : INITIAL_WORKERS;
+
       // 1. O'qituvchilar bazasidan qidirish
-      const foundTeacher = Object.values(cachedTeachers).find(
+      const foundTeacher = teachersList.find(
         t => (t.login || '').toLowerCase() === u && String(t.pass) === p
       );
 
-      // 2. Smena xodimlari bazasidan qidirish
-      const foundWorker = Object.values(cachedWorkers).find(
+      // 2. Smena xodimlari (Ishchilar / Adminlar / Kutubxonachi) bazasidan qidirish
+      const foundWorker = workersList.find(
         w => (w.login || '').toLowerCase() === u && String(w.pass) === p
       );
 
