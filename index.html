@@ -5156,6 +5156,475 @@
         alert("✅ Tizim muvaffaqiyatli 0 ga tushirildi!");
       });
     }
+// ==================== 4-QISM: TA'TIL VA BAYRAM KUNLARI MODULI (ADMIN UCHUN) ====================
+    let cachedHolidays = {};
+
+    try {
+      const savedHol = localStorage.getItem('school_cached_holidays');
+      if (savedHol) cachedHolidays = JSON.parse(savedHol);
+    } catch (e) {}
+
+    function isHolidayOrVacation(dateStr) {
+      return cachedHolidays && cachedHolidays[dateStr] ? cachedHolidays[dateStr] : null;
+    }
+
+    // 1. UI elementlari va Modalni sahifaga bir marta qo'shish
+    function initHolidaysModuleUI() {
+      if (document.getElementById('holidaysManageModal')) return;
+
+      // A) Umumiy Tahlil va Oylik Hisobot bo'limlariga "Ta'til va Bayramlar" tugmasini qo'shish
+      const analyticsZeroBtn = document.querySelector('#tabAnalytics button[onclick="resetAllAttendanceToZeroForMorning()"]');
+      if (analyticsZeroBtn && !document.getElementById('btnOpenHolidaysAnalytics')) {
+        const holBtn = document.createElement('button');
+        holBtn.id = 'btnOpenHolidaysAnalytics';
+        holBtn.type = 'button';
+        holBtn.onclick = openHolidaysModal;
+        holBtn.className = 'px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-extrabold flex items-center gap-1.5 border border-amber-200 transition';
+        holBtn.innerHTML = `<i class="fa-solid fa-calendar-check text-amber-600"></i> <span>Ta'til / Bayram kunlari</span>`;
+        analyticsZeroBtn.parentNode.insertBefore(holBtn, analyticsZeroBtn);
+      }
+
+      const monthlyExportBtn = document.querySelector('#tabMonthlyReport button[onclick="exportMonthlyTeacherHoursExcel()"]');
+      if (monthlyExportBtn && !document.getElementById('btnOpenHolidaysMonthly')) {
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-wrap items-center gap-2 w-full sm:w-auto';
+        monthlyExportBtn.parentNode.insertBefore(wrap, monthlyExportBtn);
+
+        const holBtn2 = document.createElement('button');
+        holBtn2.id = 'btnOpenHolidaysMonthly';
+        holBtn2.type = 'button';
+        holBtn2.onclick = openHolidaysModal;
+        holBtn2.className = 'flex-1 sm:flex-none px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition';
+        holBtn2.innerHTML = `<i class="fa-solid fa-umbrella-beach"></i> <span>Ta'til kunlarini belgilash</span>`;
+
+        wrap.appendChild(holBtn2);
+        wrap.appendChild(monthlyExportBtn);
+      }
+
+      // B) Ta'til va Bayramlarni boshqarish Modali
+      const modal = document.createElement('div');
+      modal.id = 'holidaysManageModal';
+      modal.className = 'fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50';
+      modal.innerHTML = `
+        <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[90vh] flex flex-col">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-calendar-Plus text-amber-500"></i> Ta'til va Bayram Kunlari
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">Belgilangan kunlarda dars soatlari "o'tilmagan" deb hisoblanmaydi</p>
+            </div>
+            <button onclick="closeHolidaysModal()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl">
+              <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+          </div>
+
+          <div class="space-y-3 my-4 overflow-y-auto pr-1">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">Boshlanish sanasi</label>
+                <input type="date" id="holStartDate" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">Tugash sanasi (1 kun bo'lsa o'zi)</label>
+                <input type="date" id="holEndDate" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">Kun tartibi (Turi)</label>
+                <select id="holTypeSelect" onchange="onHolTypeChange()" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+                  <option value="vacation">Ta'til (Dars yo'q, xodimlar keladi)</option>
+                  <option value="holiday">Rasmiy Bayram (Umumiy dam olish)</option>
+                </select>
+              </div>
+              <div id="holArrivalTimeWrap">
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">Ta'tilda kelish vaqti me'yori</label>
+                <input type="time" id="holArrivalTime" value="09:00" class="w-full border rounded-xl px-3 py-2 text-xs font-bold">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1">Izoh / Nomi</label>
+              <input type="text" id="holTitleInput" placeholder="Masalan: Kuzgi ta'til yoki Mustaqillik bayrami" class="w-full border rounded-xl px-3 py-2 text-xs font-medium focus:outline-none">
+            </div>
+
+            <button onclick="saveHolidayRange()" class="w-full py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-extrabold shadow-xs transition">
+              <i class="fa-solid fa-plus mr-1"></i> Sanalarni Ta'til / Bayram ro'yxatiga qo'shish
+            </button>
+
+            <div class="pt-3 border-t border-slate-100">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold text-slate-700">Kiritilgan ta'til va bayram kunlari:</span>
+                <button onclick="clearAllHolidays()" class="text-[11px] font-bold text-rose-600 hover:underline">Barchasini o'chirish</button>
+              </div>
+              <div id="holidaysListContainer" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100">
+            <button onclick="closeHolidaysModal()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">Yopish</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    initHolidaysModuleUI();
+
+    // Firebase orqali ta'til kunlarini real-vaqtda kuzatish
+    db.ref('settings/holidays').on('value', snap => {
+      cachedHolidays = snap.val() || {};
+      try {
+        localStorage.setItem('school_cached_holidays', JSON.stringify(cachedHolidays));
+      } catch (e) {}
+      updateDateDisplayLabel();
+      renderHolidaysListInModal();
+      scheduleActiveViewRender();
+    });
+
+    function onHolTypeChange() {
+      const t = document.getElementById('holTypeSelect')?.value;
+      const wrap = document.getElementById('holArrivalTimeWrap');
+      if (wrap) wrap.classList.toggle('hidden', t === 'holiday');
+    }
+
+    function openHolidaysModal() {
+      initHolidaysModuleUI();
+      document.getElementById('holStartDate').value = currentDayStr;
+      document.getElementById('holEndDate').value = currentDayStr;
+      document.getElementById('holTitleInput').value = '';
+      onHolTypeChange();
+      renderHolidaysListInModal();
+      document.getElementById('holidaysManageModal').classList.remove('hidden');
+    }
+
+    function closeHolidaysModal() {
+      document.getElementById('holidaysManageModal')?.classList.add('hidden');
+    }
+
+    function saveHolidayRange() {
+      const sVal = document.getElementById('holStartDate').value;
+      const eVal = document.getElementById('holEndDate').value || sVal;
+      const type = document.getElementById('holTypeSelect').value;
+      const arrivalTime = document.getElementById('holArrivalTime').value || '09:00';
+      const title = document.getElementById('holTitleInput').value.trim() || (type === 'vacation' ? "Ta'til kuni" : "Bayram kuni");
+
+      if (!sVal) return alert("Boshlanish sanasini tanlang!");
+      if (eVal < sVal) return alert("Tugash sanasi boshlanish sanasidan oldin bo'lishi mumkin emas!");
+
+      const sParts = sVal.split('-').map(Number);
+      const eParts = eVal.split('-').map(Number);
+      const curDate = new Date(sParts[0], sParts[1] - 1, sParts[2]);
+      const endDate = new Date(eParts[0], eParts[1] - 1, eParts[2]);
+
+      const updates = {};
+      let count = 0;
+      while (curDate <= endDate && count < 90) {
+        const dStr = formatDateLocal(curDate);
+        updates[dStr] = {
+          type: type,
+          title: title,
+          arrivalTime: type === 'vacation' ? arrivalTime : null,
+          updatedAt: Date.now()
+        };
+        curDate.setDate(curDate.getDate() + 1);
+        count++;
+      }
+
+      db.ref('settings/holidays').update(updates, () => {
+        alert(`✅ Jami ${count} kun "${title}" sifatida belgilandi!`);
+      });
+    }
+
+    function deleteSingleHoliday(dateStr) {
+      db.ref(`settings/holidays/${dateStr}`).remove();
+    }
+
+    function clearAllHolidays() {
+      if (confirm("Barcha belgilangan ta'til va bayram kunlarini o'chirmoqchimisiz?")) {
+        db.ref('settings/holidays').remove();
+      }
+    }
+
+    function renderHolidaysListInModal() {
+      const box = document.getElementById('holidaysListContainer');
+      if (!box) return;
+      const keys = Object.keys(cachedHolidays).sort().reverse();
+      if (keys.length === 0) {
+        box.innerHTML = `<div class="text-center py-4 text-xs text-slate-400 font-semibold">Hozircha ta'til yoki bayram kunlari kiritilmagan</div>`;
+        return;
+      }
+
+      box.innerHTML = keys.map(dStr => {
+        const item = cachedHolidays[dStr];
+        const isVac = item.type === 'vacation';
+        const badge = isVac
+          ? `<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">Ta'til (Kelish: ${item.arrivalTime || '09:00'})</span>`
+          : `<span class="px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold">Rasmiy Bayram</span>`;
+
+        return `
+          <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-mono font-extrabold text-slate-800">${dStr}</span>
+              ${badge}
+              <span class="text-slate-500 font-semibold">${item.title || ''}</span>
+            </div>
+            <button onclick="deleteSingleHoliday('${dStr}')" class="text-rose-500 hover:text-rose-700 p-1 font-bold">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 2. Sana yorlig'ida Ta'til / Bayram holatini ko'rsatish
+    updateDateDisplayLabel = function() {
+      const dayIdx = getDayIndexFromDateStr(currentDayStr);
+      const el = document.getElementById('currentDateDisplay');
+      const hol = isHolidayOrVacation(currentDayStr);
+      if (el) {
+        const holTag = hol ? ` • 🏖 ${hol.title} (${hol.type === 'vacation' ? "Ta'til — dars yo'q" : "Bayram"})` : '';
+        el.innerText = `${currentDayStr} (${WEEKDAYS_UZ[dayIdx]})${holTag}`;
+      }
+    };
+
+    // 3. Ta'til va bayram kunlari dars oldi ovozli eslatmalarini to'xtatish
+    const _baseCheckUpcomingNotifications = checkUpcomingLessonNotifications;
+    checkUpcomingLessonNotifications = function() {
+      if (isHolidayOrVacation(todayDayStr)) return;
+      _baseCheckUpcomingNotifications();
+    };
+
+    // 4. Admin nazorat oynasida ta'til kunini ko'rsatish
+    const _baseRenderTeacherSubmissionMonitor = renderTeacherSubmissionMonitor;
+    renderTeacherSubmissionMonitor = function() {
+      const hol = isHolidayOrVacation(currentDayStr);
+      const grid = document.getElementById('teacherControlGrid');
+      const statsBadge = document.getElementById('teacherControlStatsBadge');
+      if (hol && grid) {
+        grid.innerHTML = `
+          <div class="col-span-full p-5 rounded-2xl bg-amber-50/80 border border-amber-200 text-center">
+            <div class="text-sm font-extrabold text-amber-800">
+              <i class="fa-solid fa-umbrella-beach mr-1.5"></i>${currentDayStr} — ${hol.title}
+            </div>
+            <p class="text-xs text-amber-700 mt-1 font-medium">
+              ${hol.type === 'vacation'
+                ? "Bugun choraklik ta'til kuni: o'quvchilarga dars o'tilmaydi, o'qituvchilar faqat 'Keldim / Ketdim' tugmasini bosadi."
+                : "Bugun rasmiy bayram (dam olish) kuni: darslar o'tilmaydi."}
+            </p>
+          </div>
+        `;
+        if (statsBadge) statsBadge.innerText = hol.type === 'vacation' ? "Ta'til kuni" : "Bayram kuni";
+        return;
+      }
+      _baseRenderTeacherSubmissionMonitor();
+    };
+
+    // 5. O'qituvchi "Dars Davomati" bo'limida ta'til xabarini chiqarish
+    const _baseRenderTeacherAttendanceTable = renderTeacherAttendanceTable;
+    renderTeacherAttendanceTable = function() {
+      const hol = isHolidayOrVacation(todayDayStr);
+      if (hol && currentUser && currentUser.role !== 'admin' && currentUser.role !== 'creator') {
+        const tbody = document.getElementById('teacherAttendanceTableBody');
+        const confirmBtn = document.getElementById('confirmLessonSubmittedBtn');
+        if (confirmBtn) confirmBtn.classList.add('hidden');
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="4" class="p-8 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-xl">
+                  <i class="fa-solid fa-umbrella-beach"></i>
+                </div>
+                <div class="text-sm font-extrabold text-slate-800">Bugun — ${hol.title} (${hol.type === 'vacation' ? "Ta'til kuni" : "Bayram kuni"})</div>
+                <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  Ta'til va bayram kunlarida dars davomati olinmaydi va dars soatlari "o'tilmagan" deb hisoblanmaydi. Yuqoridagi <b>"Keldim / Ketdim"</b> tugmasidan foydalanishingiz kifoya.
+                </p>
+              </td>
+            </tr>
+          `;
+        }
+        return;
+      }
+      _baseRenderTeacherAttendanceTable();
+    };
+
+    // 6. Xodim 2 bo'limida ta'til kunlari kechikishni ta'til vaqti (09:00) bilan hisoblash
+    const _baseAnalyzeTeacherDailyMetrics = analyzeTeacherDailyMetrics;
+    analyzeTeacherDailyMetrics = function(teacherLogin, dayIdx) {
+      const hol = isHolidayOrVacation(currentDayStr);
+      if (!hol) return _baseAnalyzeTeacherDailyMetrics(teacherLogin, dayIdx);
+
+      const minuteLogs = ((cachedAttendance['_MINUTE_LOGS'] || {})[teacherLogin]) || {};
+      const checkRec = cachedCheckInOut[teacherLogin] || {};
+      const insideTimes = Object.keys(minuteLogs).filter(t => minuteLogs[t] === 'inside').sort();
+
+      const arrivalTime = checkRec.checkInTime || (insideTimes.length > 0 ? insideTimes[0] : null);
+      const departureTime = checkRec.checkOutTime || (insideTimes.length > 1 ? insideTimes[insideTimes.length - 1] : null);
+
+      if (hol.type === 'holiday') {
+        return {
+          firstLessonLabel: "Bayram",
+          arrivalTime: arrivalTime || "—",
+          departureTime: departureTime || "—",
+          latenessHtml: `<span class="px-2 py-0.5 rounded-md badge-excused font-bold">Dam olish</span>`,
+          outsideDuringLessonHtml: `<span class="px-2 py-0.5 rounded-md badge-excused font-bold">Bayram</span>`,
+          insideLessonMins: checkRec.insideMins || 0,
+          outsideLessonMins: 0
+        };
+      }
+
+      const normTimeStr = hol.arrivalTime || "09:00";
+      const normMins = timeStrToMinutes(normTimeStr);
+      let latenessHtml = `<span class="px-2 py-0.5 rounded-md badge-late font-bold">Keldim bosilmagan</span>`;
+
+      if (arrivalTime) {
+        const diff = timeStrToMinutes(arrivalTime) - normMins;
+        latenessHtml = diff <= 0
+          ? `<span class="px-2 py-0.5 rounded-md badge-present font-bold">Vaqtida</span>`
+          : `<span class="px-2 py-0.5 rounded-md badge-absent font-bold">${diff} daq kechikdi</span>`;
+      }
+
+      return {
+        firstLessonLabel: `Ta'til (${normTimeStr})`,
+        arrivalTime: arrivalTime || "—",
+        departureTime: departureTime || "—",
+        latenessHtml,
+        outsideDuringLessonHtml: `<span class="px-2 py-0.5 rounded-md badge-excused font-bold">Ta'til (Dars yo'q)</span>`,
+        insideLessonMins: checkRec.insideMins || 0,
+        outsideLessonMins: 0
+      };
+    };
+
+    // 7. Oylik va Haftalik dars soatlari hisobotida ta'til kunlarini "O'tilmagan" deb hisoblamaslik
+    renderMonthlyTeacherHoursReport = function() {
+      const tbody = document.getElementById('monthlyTeacherHoursTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = `<tr class="text-center"><td colspan="11" class="p-6 text-slate-400 font-bold">Ma'lumotlar hisoblanmoqda...</td></tr>`;
+
+      const parts = currentDayStr.split('-');
+      const endDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const weeksDates = [[], [], [], []];
+
+      for (let i = 27; i >= 0; i--) {
+        const d = new Date(endDate);
+        d.setDate(endDate.getDate() - i);
+        const wIdx = Math.floor((27 - i) / 7);
+        const dStr = formatDateLocal(d);
+        // Yakshanba va Ta'til/Bayram kunlari o'quv rejasiga qo'shilmaydi
+        if (d.getDay() !== 0 && !isHolidayOrVacation(dStr)) {
+          weeksDates[wIdx].push({ dateStr: dStr, dayIdx: d.getDay() });
+        }
+      }
+
+      const allValidDates = weeksDates.flat();
+      const startDateStr = allValidDates[0] ? allValidDates[0].dateStr : currentDayStr;
+
+      db.ref('attendance').orderByKey().startAt(startDateStr).endAt(currentDayStr).once('value', snap => {
+        const allAtt = snap.val() || {};
+        const teachers = Object.values(cachedTeachers).filter(isPedagogue);
+
+        const chartLabels = [];
+        const chartCompletedData = [];
+        const chartMissedData = [];
+        window.cachedMonthlyReportRows = [];
+
+        const rowsHtml = teachers.map((t, idx) => {
+          const weeklyPlan = getTeacherWeeklyScheduledHoursCount(t.login);
+          const weekStats = [0, 0, 0, 0];
+          const weekPlans = [0, 0, 0, 0];
+
+          weeksDates.forEach((wDays, wIdx) => {
+            wDays.forEach(({ dateStr, dayIdx }) => {
+              const dayMap = getTeacherScheduleForDay(t.login, dayIdx);
+              const dayAtt = allAtt[dateStr] || {};
+              const subMap = dayAtt['_SUBMITTED'] || {};
+              const locMap = (dayAtt['_LOCATIONS'] || {})[t.login] || {};
+
+              for (let h = 1; h <= 8; h++) {
+                const cls = dayMap[String(h)];
+                if (!cls) continue;
+                weekPlans[wIdx]++;
+
+                const classesArr = String(cls).split(',').map(s => s.trim()).filter(Boolean);
+                const isDone = Boolean(locMap[String(h)]) || classesArr.some(c => subMap[c] && subMap[c][String(h)]);
+                if (isDone) weekStats[wIdx]++;
+              }
+            });
+          });
+
+          const monthlyPlan = weekPlans.reduce((a, b) => a + b, 0);
+          const monthlyDone = weekStats.reduce((a, b) => a + b, 0);
+          const monthlyMissed = Math.max(0, monthlyPlan - monthlyDone);
+          const pct = monthlyPlan > 0 ? ((monthlyDone / monthlyPlan) * 100).toFixed(1) : "100.0";
+
+          if (weeklyPlan > 0) {
+            chartLabels.push(t.name.split(' ')[0]);
+            chartCompletedData.push(monthlyDone);
+            chartMissedData.push(monthlyMissed);
+          }
+
+          window.cachedMonthlyReportRows.push([
+            idx + 1, t.name, `${weeklyPlan} soat`,
+            `${weekStats[0]} / ${weekPlans[0]}`, `${weekStats[1]} / ${weekPlans[1]}`,
+            `${weekStats[2]} / ${weekPlans[2]}`, `${weekStats[3]} / ${weekPlans[3]}`,
+            `${monthlyPlan} soat`, `${monthlyDone} soat`, `${monthlyMissed} soat`, `${pct}%`
+          ]);
+
+          return `
+            <tr class="hover:bg-slate-100/60 transition">
+              <td class="p-3 font-bold text-slate-400 text-center">${idx + 1}</td>
+              <td class="p-3 font-bold text-slate-800">${t.name}</td>
+              <td class="p-3 text-center font-extrabold text-teal-700">${weeklyPlan} soat</td>
+              <td class="p-3 text-center font-mono">${weekStats[0]} / ${weekPlans[0]}</td>
+              <td class="p-3 text-center font-mono">${weekStats[1]} / ${weekPlans[1]}</td>
+              <td class="p-3 text-center font-mono">${weekStats[2]} / ${weekPlans[2]}</td>
+              <td class="p-3 text-center font-mono">${weekStats[3]} / ${weekPlans[3]}</td>
+              <td class="p-3 text-center font-bold">${monthlyPlan} soat</td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-md badge-present font-bold">${monthlyDone} soat</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-md ${monthlyMissed > 0 ? 'badge-absent' : 'bg-slate-100 text-slate-500'} font-extrabold">${monthlyMissed} soat</span></td>
+              <td class="p-3 text-center font-extrabold">${pct}%</td>
+            </tr>
+          `;
+        });
+
+        tbody.innerHTML = rowsHtml.join('');
+
+        const isDark = document.body.classList.contains('dark-eye-mode');
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+        const gridColor = isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(148, 163, 184, 0.2)';
+
+        if (monthlyChartInstance) {
+          monthlyChartInstance.data.labels = chartLabels;
+          monthlyChartInstance.data.datasets[0].data = chartCompletedData;
+          monthlyChartInstance.data.datasets[1].data = chartMissedData;
+          monthlyChartInstance.update('none');
+        } else {
+          const ctx = document.getElementById('monthlyHoursChart').getContext('2d');
+          monthlyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: chartLabels,
+              datasets: [
+                { label: "O'tilgan soatlar", data: chartCompletedData, backgroundColor: '#0d9488', borderRadius: 5 },
+                { label: "O'tilmagan soatlar", data: chartMissedData, backgroundColor: '#e11d48', borderRadius: 5 }
+              ]
+            },
+            options: {
+              animation: false,
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { labels: { color: textColor } } },
+              scales: {
+                x: { stacked: true, ticks: { color: textColor }, grid: { color: gridColor } },
+                y: { stacked: true, beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+              }
+            }
+          });
+        }
+      });
+    };
   </script>
 </body>
 </html>
