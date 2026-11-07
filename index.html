@@ -218,55 +218,81 @@
     body.dark-eye-mode .badge-excused { background-color: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
 
   
-    /* ==================== CREATOR CYBER DARK REJIMI ==================== */
+    
+    /* ==================== TO'LIQ VA MUKAMMAL CREATOR CYBER DARK REJIMI ==================== */
     body.creator-cyber-mode {
       background-color: #020617 !important;
       color: #e2e8f0 !important;
       background-size: 40px 40px;
       background-image: 
         linear-gradient(to right, rgba(168, 85, 247, 0.08) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px);
+        linear-gradient(to bottom, rgba(6, 182, 212, 0.08) 1px, transparent 1px) !important;
     }
     body.creator-cyber-mode header,
+    body.creator-cyber-mode header.bg-white\/95,
+    body.creator-cyber-mode header.bg-white,
     body.creator-cyber-mode .bg-white,
+    body.creator-cyber-mode .bg-white\/95,
+    body.creator-cyber-mode .bg-white\/90,
+    body.creator-cyber-mode .bg-white\/80,
     body.creator-cyber-mode .eye-card {
-      background-color: rgba(9, 14, 30, 0.92) !important;
-      border-color: rgba(168, 85, 247, 0.35) !important;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.75), inset 0 0 15px rgba(168, 85, 247, 0.05) !important;
-      color: #e2e8f0 !important;
+      background-color: rgba(9, 14, 30, 0.95) !important;
+      border-color: rgba(168, 85, 247, 0.4) !important;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), inset 0 0 15px rgba(168, 85, 247, 0.06) !important;
+      color: #f1f5f9 !important;
+    }
+    body.creator-cyber-mode header {
+      border-bottom: 2px solid rgba(168, 85, 247, 0.6) !important;
+      box-shadow: 0 4px 25px rgba(168, 85, 247, 0.25) !important;
     }
     body.creator-cyber-mode .bg-slate-50,
+    body.creator-cyber-mode .bg-slate-50\/90,
     body.creator-cyber-mode .bg-slate-50\/80,
     body.creator-cyber-mode .bg-slate-50\/70,
     body.creator-cyber-mode .bg-slate-100,
+    body.creator-cyber-mode .bg-slate-100\/90,
     body.creator-cyber-mode .bg-slate-100\/80,
     body.creator-cyber-mode .bg-slate-100\/70 {
-      background-color: #040916 !important;
+      background-color: #040817 !important;
       border-color: #1e293b !important;
       color: #cbd5e1 !important;
     }
+    body.creator-cyber-mode .text-slate-900,
+    body.creator-cyber-mode .text-slate-800,
+    body.creator-cyber-mode .text-slate-700 {
+      color: #f8fafc !important;
+    }
+    body.creator-cyber-mode .text-slate-600,
+    body.creator-cyber-mode .text-slate-500,
+    body.creator-cyber-mode .text-slate-400 {
+      color: #94a3b8 !important;
+    }
     body.creator-cyber-mode input,
     body.creator-cyber-mode select {
-      background-color: #030712 !important;
-      border-color: rgba(168, 85, 247, 0.45) !important;
+      background-color: #020617 !important;
+      border-color: rgba(168, 85, 247, 0.5) !important;
       color: #38bdf8 !important;
     }
     body.creator-cyber-mode tr:hover {
       background-color: rgba(168, 85, 247, 0.15) !important;
     }
     body.creator-cyber-mode th {
-      background-color: #070e20 !important;
+      background-color: #070e22 !important;
       color: #a855f7 !important;
       border-color: #1e293b !important;
       font-family: 'JetBrains Mono', monospace !important;
       font-size: 11px !important;
     }
+    body.creator-cyber-mode td {
+      border-color: #1e293b !important;
+    }
     body.creator-cyber-mode #userRoleBadge {
       background: linear-gradient(135deg, #a855f7, #06b6d4) !important;
       color: #ffffff !important;
-      box-shadow: 0 0 18px rgba(168, 85, 247, 0.6) !important;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.7) !important;
       font-family: 'Orbitron', sans-serif !important;
-      letter-spacing: 0.5px !important;
+      letter-spacing: 0.8px !important;
+      font-weight: 800 !important;
     }
     body.creator-cyber-mode #navTabs button {
       font-family: 'JetBrains Mono', monospace !important;
@@ -276,16 +302,21 @@
       background: linear-gradient(135deg, #7e22ce, #0891b2) !important;
       color: #fff !important;
       border: 1px solid rgba(6, 182, 212, 0.6) !important;
-      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4) !important;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.45) !important;
     }
     body.creator-cyber-mode #navTabs button.bg-white {
-      background-color: #070e20 !important;
+      background-color: #070e22 !important;
       color: #94a3b8 !important;
       border-color: #1e293b !important;
     }
-
-    /* Kiber Skanner nuri (Creator rejimida) */
-    .creator-scanline {
+    body.creator-cyber-mode .border-slate-100,
+    body.creator-cyber-mode .border-slate-200,
+    body.creator-cyber-mode .border-slate-200\/70,
+    body.creator-cyber-mode .border-slate-200\/80,
+    body.creator-cyber-mode .border-slate-300 {
+      border-color: #1e293b !important;
+    }
+.creator-scanline {
       position: fixed;
       top: 0; left: 0; right: 0; height: 3px;
       background: linear-gradient(90deg, transparent, #06b6d4, #a855f7, #ec4899, transparent);
@@ -3611,6 +3642,7 @@
 
 
     let currentUser = null;
+      document.body.classList.remove("creator-cyber-mode");
 
     let clickCount = 0;
 
@@ -4103,6 +4135,9 @@
       if (savedUser) {
 
         currentUser = JSON.parse(savedUser);
+          if (currentUser && currentUser.role === "creator") {
+            document.body.classList.add("creator-cyber-mode");
+          }
 
         showApp();
 
@@ -4567,32 +4602,22 @@
     }
 
     function verifyCreatorCode() {
-
       const code = document.getElementById('creatorCodeInput').value;
-
       if (code === "01020304") {
-
         currentUser = {
-
           id: "creator",
-
           name: "PLATFORM CREATOR",
-
           role: "creator",
-
           login: "creator",
-
           class: ""
-
         };
-
         localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
-
         closeCreatorModal();
-
-        showApp();
-
+        startCreatorIntroSwarm();
       } else {
+        alert("Xato maxfiy kod!");
+      }
+    } else {
 
         alert("Xato maxfiy kod!");
 
@@ -4722,6 +4747,7 @@
 
 
       if (currentUser.role === 'creator') {
+        document.body.classList.add("creator-cyber-mode");
 
         roleBadge.innerText = "Creator Rejimi (To'liq Boshqaruv)";
 
@@ -4866,6 +4892,9 @@
 
 
     function switchTab(tabId) {
+      if (currentUser && currentUser.role === "creator") {
+        triggerTabBotsRefresh(tabId);
+      }
 
       currentActiveTabId = tabId;
 
