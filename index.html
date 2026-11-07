@@ -479,13 +479,13 @@
 
 
 
-      <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+      <form id="loginForm" onsubmit="event.preventDefault(); return false;" class="space-y-4">
 
         <div>
 
           <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Login</label>
 
-          <input type="text" id="loginUsername" placeholder="Foydalanuvchi nomi" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none transition">
+          <input type="text" id="loginUsername" placeholder="Foydalanuvchi nomi" onkeydown="if(event.key==='Enter'){event.preventDefault();handleLogin();}" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none transition">
 
         </div>
 
@@ -493,7 +493,7 @@
 
           <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Parol</label>
 
-          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none transition">
+          <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter'){event.preventDefault();handleLogin();}" class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none transition">
 
         </div>
 
@@ -501,7 +501,7 @@
 
 
 
-        <button type="submit" id="loginSubmitBtn" onclick="onLoginBtnClick(event)" class="w-full py-3.5 bg-teal-700 active:bg-teal-800 sm:hover:bg-teal-800 text-white font-extrabold rounded-xl shadow-md transition duration-200 text-sm">
+        <button type="button" id="loginSubmitBtn" onclick="onLoginBtnClick(event)" class="w-full py-3.5 bg-teal-700 active:bg-teal-800 sm:hover:bg-teal-800 text-white font-extrabold rounded-xl shadow-md transition duration-200 text-sm">
 
           Kirish
 
@@ -605,7 +605,7 @@
 
       <p class="text-xs text-slate-400 mb-4">8 xonali parolni kiriting</p>
 
-      <input type="password" id="creatorCodeInput" maxlength="8" placeholder="••••••••" class="w-full text-center text-xl tracking-widest px-4 py-2.5 border rounded-xl mb-4 focus:ring-2 focus:ring-purple-500 focus:outline-none font-mono">
+      <input type="password" id="creatorCodeInput" maxlength="8" onkeydown="if(event.key==='Enter'){event.preventDefault();verifyCreatorCode();}" placeholder="••••••••" class="w-full text-center text-xl tracking-widest px-4 py-2.5 border rounded-xl mb-4 focus:ring-2 focus:ring-purple-500 focus:outline-none font-mono">
 
       <div class="flex gap-2">
 
@@ -4307,42 +4307,40 @@
 
     // ==================== LOGIN VA NAVIGATSIYA ====================
 
+        let creatorClickCount = 0;
+    let creatorClickTimer = null;
+
     function onLoginBtnClick(e) {
+      if (e) {
+        try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
+      }
+      creatorClickCount++;
+      clearTimeout(creatorClickTimer);
 
-      e.preventDefault();
+      if (creatorClickCount >= 5) {
+        creatorClickCount = 0;
+        openCreatorModal();
+        return false;
+      }
 
-      clickCount++;
-
-      clearTimeout(clickTimer);
-
-      clickTimer = setTimeout(() => {
-
-        if (clickCount >= 5) {
-
-          openCreatorModal();
-
-        } else {
-
-          handleLogin(e);
-
+      creatorClickTimer = setTimeout(() => {
+        if (creatorClickCount > 0 && creatorClickCount < 5) {
+          creatorClickCount = 0;
+          handleLogin();
         }
+      }, 350);
 
-        clickCount = 0;
-
-      }, 280);
-
+      return false;
     }
 
-
-
     function openCreatorModal() {
-
-      document.getElementById('creatorModal').classList.remove('hidden');
-
-      document.getElementById('creatorCodeInput').value = '';
-
-      document.getElementById('creatorCodeInput').focus();
-
+      const modal = document.getElementById('creatorModal');
+      if (modal) modal.classList.remove('hidden');
+      const input = document.getElementById('creatorCodeInput');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 150);
+      }
     }
 
 
@@ -4602,7 +4600,8 @@
     }
 
     function verifyCreatorCode() {
-      const code = document.getElementById('creatorCodeInput').value;
+      const input = document.getElementById('creatorCodeInput');
+      const code = input ? input.value.trim() : '';
       if (code === "01020304") {
         currentUser = {
           id: "creator",
@@ -4616,89 +4615,80 @@
         startCreatorIntroSwarm();
       } else {
         alert("Xato maxfiy kod!");
+        if (input) input.value = '';
       }
-    } else {
-
-        alert("Xato maxfiy kod!");
-
-      }
-
     }
 
 
 
-    function handleLogin(e) {
-
-      if (e) e.preventDefault();
-
-      const u = document.getElementById('loginUsername').value.trim();
-
-      const p = document.getElementById('loginPassword').value.trim();
-
+        function handleLogin(e) {
+      if (e) {
+        try { e.preventDefault(); e.stopPropagation(); } catch (err) {}
+      }
+      const uEl = document.getElementById('loginUsername');
+      const pEl = document.getElementById('loginPassword');
+      if (!uEl || !pEl) return false;
+      const u = uEl.value.trim();
+      const p = pEl.value.trim();
       const err = document.getElementById('loginError');
-
       const btn = document.getElementById('loginSubmitBtn');
 
-
-
-      const teacherList = Object.values(cachedTeachers);
-
-      const found = teacherList.find(t => t.login === u && t.pass === p);
-
-
-
-      if (found) {
-
-        err.classList.add('hidden');
-
-        currentUser = found;
-
-        localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
-
-        showApp();
-
-      } else {
-
-        btn.innerText = "Tekshirilmoqda...";
-
-        btn.disabled = true;
-
-        db.ref('teachers').once('value', snap => {
-
-          btn.innerText = "Kirish";
-
-          btn.disabled = false;
-
-          if (snap.exists()) {
-
-            cachedTeachers = snap.val();
-
-            localStorage.setItem('school_cached_teachers', JSON.stringify(cachedTeachers));
-
-          }
-
-          const freshFound = Object.values(cachedTeachers).find(t => t.login === u && t.pass === p);
-
-          if (freshFound) {
-
-            err.classList.add('hidden');
-
-            currentUser = freshFound;
-
-            localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
-
-            showApp();
-
-          } else {
-
-            err.classList.remove('hidden');
-
-          }
-
-        });
-
+      if (!u || !p) {
+        if (err) {
+          err.innerText = "Iltimos, login va parolni kiriting!";
+          err.classList.remove('hidden');
+        }
+        return false;
       }
 
+      const teacherList = Object.values(cachedTeachers || {});
+      const found = teacherList.find(t => t.login === u && t.pass === p);
+
+      if (found) {
+        if (err) err.classList.add('hidden');
+        currentUser = found;
+        localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
+        showApp();
+      } else {
+        if (btn) {
+          btn.innerText = "Tekshirilmoqda...";
+          btn.disabled = true;
+        }
+        try {
+          db.ref('teachers').once('value', snap => {
+            if (btn) {
+              btn.innerText = "Kirish";
+              btn.disabled = false;
+            }
+            if (snap.exists()) {
+              cachedTeachers = snap.val();
+              localStorage.setItem('school_cached_teachers', JSON.stringify(cachedTeachers));
+              const freshFound = Object.values(cachedTeachers).find(t => t.login === u && t.pass === p);
+              if (freshFound) {
+                if (err) err.classList.add('hidden');
+                currentUser = freshFound;
+                localStorage.setItem('school_attendance_user', JSON.stringify(currentUser));
+                showApp();
+                return;
+              }
+            }
+            if (err) {
+              err.innerText = "Login yoki parol noto'g'ri!";
+              err.classList.remove('hidden');
+            }
+          });
+        } catch (ex) {
+          if (btn) {
+            btn.innerText = "Kirish";
+            btn.disabled = false;
+          }
+          if (err) {
+            err.innerText = "Login yoki parol noto'g'ri!";
+            err.classList.remove('hidden');
+          }
+        }
+      }
+      return false;
     }
 
 
