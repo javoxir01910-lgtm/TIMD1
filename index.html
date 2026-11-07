@@ -889,6 +889,11 @@
 
           <div class="flex items-center gap-1.5 flex-shrink-0">
 
+                        <button onclick="confirmAndResetAllData()" id="creatorResetAllBtn" title="Barcha hisobotlarni arxivlab yuklab olish va bazani tozalash" class="hidden px-3 py-1.5 bg-rose-950/90 hover:bg-rose-900 text-rose-300 border border-rose-500/60 rounded-xl text-xs font-bold font-mono shadow-md flex items-center gap-1.5 transition active:scale-95">
+              <i class="fa-solid fa-cloud-arrow-down text-rose-400"></i>
+              <span class="hidden sm:inline">Arxivlab Tozalash</span>
+              <span class="sm:hidden">Tozalash</span>
+            </button>
             <button onclick="toggleEyeCareMode()" id="eyeCareBtn" title="Ko'zni himoyalash / Tungi rejim" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
 
               <i id="eyeCareIcon" class="fa-solid fa-moon text-indigo-600"></i>
@@ -3642,6 +3647,8 @@
 
 
     let currentUser = null;
+            const resetBtn = document.getElementById('creatorResetAllBtn');
+      if (resetBtn) resetBtn.classList.add('hidden');
       document.body.classList.remove("creator-cyber-mode");
 
     let clickCount = 0;
@@ -4599,6 +4606,217 @@
       }));
     }
 
+    
+    // ===================================================================
+    // CREATOR: BARCHA MA'LUMOTLARNI ARXIVLAB YUKLAB OLISH VA TOZALASH
+    // ===================================================================
+    async function confirmAndResetAllData() {
+      if (!currentUser || currentUser.role !== 'creator') {
+        alert("Faqat Creator bu amalni bajara oladi!");
+        return;
+      }
+
+      const promptMsg = "DIQQAT! BARCHA MA'LUMOTLARNI TOZALASH VA ARXIVLASH\n\n" +
+        "1. Oldingi barcha tahlillar, o'qituvchi va o'quvchilar ro'yxati, 1 oylik hisobotlar to'liq Excel (.xlsx) va JSON arxiv sifatida kompyuteringizga yuklab olinadi.\n" +
+        "2. Barcha davomat, keldi-ketdi daqiqalari, GPS registratsiyalari va qurilmalar to'liq tozalanadi (statistika 0 holatiga qaytadi).\n\n" +
+        "Davom ettirishni tasdiqlaysizmi?";
+
+      if (!confirm(promptMsg)) return;
+
+      const dateStr = formatDateLocal(new Date());
+
+      // 1. TO'LIQ EXCEL ARXIVINI YARATISH (SheetJS)
+      try {
+        if (typeof XLSX !== 'undefined') {
+          const wb = XLSX.utils.book_new();
+
+          // Sheet 1: Umumiy Davomat
+          const attRows = [["Sana", "Sinf", "Dars Soati", "Fan", "O'qituvchi", "O'quvchi F.I.SH", "Holati", "Sababi"]];
+          Object.keys(cachedAttendance || {}).forEach(d => {
+            const dayData = cachedAttendance[d] || {};
+            Object.keys(dayData).forEach(cls => {
+              if (cls.startsWith('_')) return;
+              const clsData = dayData[cls] || {};
+              Object.keys(clsData).forEach(hour => {
+                const hData = clsData[hour] || {};
+                const stMap = hData.students || {};
+                Object.keys(stMap).forEach(sid => {
+                  const st = (cachedStudents || {})[sid] || { name: sid };
+                  const rec = stMap[sid] || {};
+                  attRows.push([
+                    d,
+                    cls,
+                    hour + "-soat",
+                    hData.subject || '',
+                    hData.teacherName || '',
+                    st.name || '',
+                    rec.status || 'Kelmadi',
+                    rec.reason || ''
+                  ]);
+                });
+              });
+            });
+          });
+          const ws1 = XLSX.utils.aoa_to_sheet(attRows);
+          XLSX.utils.book_append_sheet(wb, ws1, "Davomat_Arxivi");
+
+          // Sheet 2: O'qituvchilar Ro'yxati
+          const tRows = [["ID", "F.I.SH", "Roli", "Biriktirilgan Sinf", "Login", "Parol"]];
+          Object.values(cachedTeachers || {}).forEach(t => {
+            tRows.push([t.id || '', t.name || '', t.role || '', t.class || '', t.login || '', t.pass || '']);
+          });
+          const ws2 = XLSX.utils.aoa_to_sheet(tRows);
+          XLSX.utils.book_append_sheet(wb, ws2, "Oqituvchilar");
+
+          // Sheet 3: O'quvchilar Ro'yxati
+          const sRows = [["ID", "F.I.SH", "Sinf", "Telefon"]];
+          Object.values(cachedStudents || {}).forEach(s => {
+            sRows.push([s.id || '', s.name || '', s.class || '', s.phone || '']);
+          });
+          const ws3 = XLSX.utils.aoa_to_sheet(sRows);
+          XLSX.utils.book_append_sheet(wb, ws3, "Oquvchilar");
+
+          // Sheet 4: Xodimlar va Keldi-Ketdi
+          const wRows = [["Sana", "Xodim F.I.SH", "Login", "Kelgan Vaqti", "Ketgan Vaqti", "Hududda (Daqiqa)", "Tashqarida (Daqiqa)"]];
+          Object.keys(cachedCheckInOut || {}).forEach(d => {
+            const dayCheck = cachedCheckInOut[d] || {};
+            Object.keys(dayCheck).forEach(lgn => {
+              const rec = dayCheck[lgn] || {};
+              const t = Object.values(cachedTeachers || {}).find(x => x.login === lgn) || { name: lgn };
+              wRows.push([
+                d,
+                t.name || lgn,
+                lgn,
+                rec.checkInTime || '',
+                rec.checkOutTime || '',
+                rec.insideMinutes || 0,
+                rec.outsideMinutes || 0
+              ]);
+            });
+          });
+          const ws4 = XLSX.utils.aoa_to_sheet(wRows);
+          XLSX.utils.book_append_sheet(wb, ws4, "Xodimlar_KeldiKetdi");
+
+          // Sheet 5: Oylik Dars Hisoboti
+          const mHeader = ["№", "O'qituvchi F.I.SH", "Login", "Haftalik Yuklama", "Oylik Reja", "Jami O'tildi", "O'tilmagan", "Bajarilish %"];
+          const mRows = [mHeader];
+          const pedagogs = Object.values(cachedTeachers || {}).filter(isPedagogue);
+          pedagogs.forEach((t, idx) => {
+            let weeklyHours = 0;
+            const tSched = (cachedSchedules || {})[t.login] || {};
+            for (let d = 1; d <= 6; d++) {
+              weeklyHours += Object.keys(tSched[d] || {}).length;
+            }
+            const monthlyPlan = weeklyHours * 4;
+            let totalAttended = 0;
+            Object.keys(cachedAttendance || {}).forEach(dateK => {
+              const dayObj = cachedAttendance[dateK] || {};
+              Object.keys(dayObj).forEach(cName => {
+                if (cName.startsWith('_')) return;
+                const cObj = dayObj[cName] || {};
+                Object.keys(cObj).forEach(hKey => {
+                  const lesson = cObj[hKey] || {};
+                  if (lesson.teacherId === t.id || lesson.teacherLogin === t.login) {
+                    totalAttended++;
+                  }
+                });
+              });
+            });
+            const unperformed = Math.max(0, monthlyPlan - totalAttended);
+            const ratio = monthlyPlan > 0 ? Math.round((totalAttended / monthlyPlan) * 100) : 0;
+            mRows.push([idx + 1, t.name, t.login, weeklyHours, monthlyPlan, totalAttended, unperformed, ratio + "%"]);
+          });
+          const ws5 = XLSX.utils.aoa_to_sheet(mRows);
+          XLSX.utils.book_append_sheet(wb, ws5, "Oylik_Dars_Hisoboti");
+
+          // Sheet 6: Qurilmalar Ro'yxati
+          const devRows = [["Foydalanuvchi Logini", "Qurilma ID", "Modeli", "IP Manzili", "Oxirgi Ko'rilgan Vaqti"]];
+          Object.keys(cachedDevicesMap || {}).forEach(lgn => {
+            const userDevs = cachedDevicesMap[lgn] || {};
+            Object.keys(userDevs).forEach(did => {
+              const dInfo = userDevs[did] || {};
+              devRows.push([lgn, did, dInfo.model || 'Noma\'lum', dInfo.ip || '', dInfo.lastSeen || '']);
+            });
+          });
+          const ws6 = XLSX.utils.aoa_to_sheet(devRows);
+          XLSX.utils.book_append_sheet(wb, ws6, "Qurilmalar");
+
+          XLSX.writeFile(wb, `Maktab_Davomat_Toliq_Arxiv_${dateStr}.xlsx`);
+        }
+      } catch (err) {
+        console.warn("Excel arxiv yaratishda xato:", err);
+      }
+
+      // 2. TO'LIQ JSON ZAXIRA FAYLINI YUKLAB BERISH (Qo'shimcha kafolat)
+      try {
+        const fullBackupObj = {
+          archivedAt: new Date().toISOString(),
+          archivedBy: "PLATFORM_CREATOR",
+          teachers: cachedTeachers,
+          students: cachedStudents,
+          attendance: cachedAttendance,
+          schedules: cachedSchedules,
+          checkInOut: cachedCheckInOut,
+          devices: cachedDevicesMap,
+          bellTimes: cachedBellTimes,
+          schoolLocation: cachedSchoolLocation
+        };
+        const blob = new Blob([JSON.stringify(fullBackupObj, null, 2)], { type: 'application/json' });
+        const jsonUrl = URL.createObjectURL(blob);
+        const dlLink = document.createElement('a');
+        dlLink.href = jsonUrl;
+        dlLink.download = `Maktab_Baza_Zaxira_${dateStr}.json`;
+        document.body.appendChild(dlLink);
+        dlLink.click();
+        setTimeout(() => { dlLink.remove(); URL.revokeObjectURL(jsonUrl); }, 1200);
+      } catch (e) {
+        console.warn("JSON backup xato:", e);
+      }
+
+      // 3. BAZA VA STATISTIKANI TOZALASH (0 HOLATIGA QAYTARISH)
+      cachedAttendance = {};
+      cachedCheckInOut = {};
+      cachedDevicesMap = {};
+
+      localStorage.removeItem('school_cached_attendance');
+      localStorage.removeItem('school_cached_checkinout');
+      localStorage.removeItem('school_cached_devices');
+      localStorage.removeItem('school_mock_rtdb_data');
+
+      // Supabase jadvallarini tozalash (agar ulangan bo'lsa)
+      if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+        try {
+          await supabaseClient.from('attendance_lessons').delete().neq('id', '_none_');
+          await supabaseClient.from('attendance_daily').delete().neq('student_id', '_none_');
+          await supabaseClient.from('worker_checkinout').delete().neq('id', '_none_');
+          await supabaseClient.from('realtime_locations').delete().neq('login', '_none_');
+          await supabaseClient.from('devices').delete().neq('login', '_none_');
+        } catch (sErr) {
+          console.warn("Supabase tozalash:", sErr);
+        }
+      }
+
+      // RTDB / Mock DB tozalash
+      try {
+        if (typeof db !== 'undefined' && db && db.ref) {
+          db.ref('attendance').remove();
+          db.ref('devices').remove();
+          db.ref('settings/deviceLockEnabled').set(false);
+        }
+      } catch (dbErr) {
+        console.warn("RTDB tozalash:", dbErr);
+      }
+
+      // 4. BARCHA KO'RINISH VA JADVALLARNI 0 STATISTIKA BILAN YANGILASH
+      if (typeof renderAdminAnalytics === 'function') renderAdminAnalytics();
+      if (typeof renderWorkersManageSection === 'function') renderWorkersManageSection();
+      if (typeof renderTeachersLocationTable === 'function') renderTeachersLocationTable();
+      if (typeof renderMonthlyTeacherHoursReport === 'function') renderMonthlyTeacherHoursReport();
+      if (typeof renderDevicesManageSection === 'function') renderDevicesManageSection();
+
+      alert("MUVAFFAQIYATLI!\n\nBarcha 1 oylik tahlillar, hisobotlar va davomat arxivi Excel hamda JSON formatda yuklab olindi.\n\nBaza to'liq tozalandi va barcha statistika 0 (yangi dastur) holatiga qaytarildi!");
+    }
+
     function verifyCreatorCode() {
       const input = document.getElementById('creatorCodeInput');
       const code = input ? input.value.trim() : '';
@@ -4736,7 +4954,9 @@
 
 
 
+            const resetBtn = document.getElementById('creatorResetAllBtn');
       if (currentUser.role === 'creator') {
+        if (resetBtn) resetBtn.classList.remove('hidden');
         document.body.classList.add("creator-cyber-mode");
 
         roleBadge.innerText = "Creator Rejimi (To'liq Boshqaruv)";
@@ -4760,6 +4980,7 @@
           <button onclick="switchTab('tabMonthlyReport')" class="px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap">Oylik Hisobot</button>
 
           <button onclick="switchTab('tabDevicesManage')" class="px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap"><i class="fa-solid fa-mobile-screen mr-1"></i>Qurilmalar</button>
+          <button onclick="confirmAndResetAllData()" class="px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap bg-rose-950/90 hover:bg-rose-900 border border-rose-500/60 text-rose-300 shadow-sm flex items-center gap-1"><i class="fa-solid fa-trash-can-arrow-up mr-1"></i>Arxivlab Tozalash</button>
 
         `;
 
