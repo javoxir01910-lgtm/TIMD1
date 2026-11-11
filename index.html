@@ -835,7 +835,7 @@
 
             <option value="10-A">10-A</option><option value="10-B">10-B</option>
 
-            <option value="11-A">11-A</option><option value="11-B">11-B</option>
+            <option value="11-A">11-A</option>
 
           </select>
 
@@ -2766,7 +2766,7 @@
 
     // ==================== ASOSIY MA'LUMOTLAR VA FIREBASE ====================
 
-    const ORDERED_CLASSES = ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A", "11-B"];
+    const ORDERED_CLASSES = ["5-A", "5-B", "6-A", "6-B", "7-A", "8-A", "8-B", "9-A", "9-B", "9-V", "10-A", "10-B", "11-A"];
 
     const WEEKDAYS_UZ = ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"];
 
@@ -2988,11 +2988,11 @@
 
       { id: "t9", name: "Turekeeva Zamira Aymuratovna", class: "10-A", role: "class_leader", login: "turekeeva", pass: "123456" },
 
-      { id: "t10", name: "Bazarbaeva Gulnaz Joldasbayevna", class: "11-A", role: "class_leader", login: "bazarbaeva_g", pass: "123456" },
+      { id: "t10", name: "Bazarbaeva Gulnaz Joldasbayevna", class: "", role: "subject", login: "bazarbaeva_g", pass: "123456" },
 
       { id: "t11", name: "Sırımbetova Ulzira Jaksilik qızı", class: "5-A", role: "class_leader", login: "sirimbetova", pass: "123456" },
 
-      { id: "t12", name: "Kamalova Elmira Yemjarovna", class: "11-B", role: "class_leader", login: "kamalova", pass: "123456" },
+      { id: "t12", name: "Kamalova Elmira Yemjarovna", class: "", role: "subject", login: "kamalova", pass: "123456" },
 
       { id: "t13", name: "Gurbanova Ayperi Murat qızı", class: "", role: "subject", login: "gurbanova", pass: "123456" },
 
@@ -3136,37 +3136,35 @@
 
       { class: "10-B", name: "SAPARBAYEV SHERZOD SHAUKATOVICH" },
 
-      { class: "11-B", name: "САПАРНИЯЗОВ АСАДБЕK УРАЗБАЙ УЛЫ" },
+      { class: "11-A", name: "САПАРНИЯЗОВ АСАДБЕK УРАЗБАЙ УЛЫ" },
 
-      { class: "11-B", name: "ДУРДЫБАЕВ ИСЛАМ КУВАНИЧ УЛЫ" },
+      { class: "11-A", name: "ДУРДЫБАЕВ ИСЛАМ КУВАНИЧ УЛЫ" },
 
-      { class: "11-B", name: "АЖИМУРАТОВ КУТЛЫМУРАТ ОМИРЗАКОВИЧ" },
+      { class: "11-A", name: "АЖИМУРАТОВ КУТЛЫМУРАТ ОМИРЗАКОВИЧ" },
 
-      { class: "11-B", name: "ЕШБАЕВ ДИЛШОД БАХАДИР УЛЫ" },
+      { class: "11-A", name: "ҒАЙРАТОВ УМИДЖОН АЛЛАМБЕРГАН ЎҒЛИ" },
 
-      { class: "11-B", name: "ҒАЙРАТОВ УМИДЖОН АЛЛАМБЕРГАН ЎҒЛИ" },
+      { class: "11-A", name: "РАХМАНОВ БАТЫРБЕК АЛТЫ УЛЫ" },
 
-      { class: "11-B", name: "РАХМАНОВ БАТЫРБЕК АЛТЫ УЛЫ" },
+      { class: "11-A", name: "ХАЙБУЛЛАЕВ ИБРОХИМ МАХМУД УЛЫ" },
 
-      { class: "11-B", name: "ХАЙБУЛЛАЕВ ИБРОХИМ МАХМУД УЛЫ" },
+      { class: "11-A", name: "БАЛТАБАЕВА ФАРАНГИЗ ХАМЗА ҚЫЗЫ" },
 
-      { class: "11-B", name: "БАЛТАБАЕВА ФАРАНГИЗ ХАМЗА ҚЫЗЫ" },
+      { class: "11-A", name: "ИСЛАМОВА МАФТУНА МАМУР КИЗИ" },
 
-      { class: "11-B", name: "ИСЛАМОВА МАФТУНА МАМУР КИЗИ" },
+      { class: "11-A", name: "ЖАНАБАЕВ ЖОВОХИР МАХМУДОВИЧ" },
 
-      { class: "11-B", name: "ЖАНАБАЕВ ЖОВОХИР МАХМУДОВИЧ" },
+      { class: "11-A", name: "КАЗАКБАЕВ АЛИШЕР АЙБЕКОВИЧ" },
 
-      { class: "11-B", name: "КАЗАКБАЕВ АЛИШЕР АЙБЕКОВИЧ" },
+      { class: "11-A", name: "ЮЛДАШЕВ ОЗОДБЕК РЕЖЕПБАЙ УЛЫ" },
 
-      { class: "11-B", name: "ЮЛДАШЕВ ОЗОДБЕК РЕЖЕПБАЙ УЛЫ" },
+      { class: "11-A", name: "АРАЛБАЕВ АБИЎБАКИР АЗАМАТ УЛЫ" },
 
-      { class: "11-B", name: "АРАЛБАЕВ АБИЎБАКИР АЗАМАТ УЛЫ" },
+      { class: "11-A", name: "ЖАНАБАЕВ ОЗОДБЕК БАХАДЫРОВИЧ" },
 
-      { class: "11-B", name: "ЖАНАБАЕВ ОЗОДБЕК БАХАДЫРОВИЧ" },
+      { class: "11-A", name: "ТУРСИНБАЕВА ШОХНОЗА БАХАДИРОВНА" },
 
-      { class: "11-B", name: "ТУРСИНБАЕВА ШОХНОЗА БАХАДИРОВНА" },
-
-      { class: "11-B", name: "КАДРБЕРГЕНОВ АМИРБЕК БАХТИЯР УЛЫ" },
+      { class: "11-A", name: "КАДРБЕРГЕНОВ АМИРБЕК БАХТИЯР УЛЫ" },
 
       { class: "9-V", name: "ЖАЛГАСОВ МИРАС ИСАТАЕВИЧ" },
 
@@ -3762,6 +3760,28 @@
 
 
     function preloadLocalFallbacks() {
+        // Auto-migration: 11-B -> 11-A merge & Eshbayev removal
+        if (cachedTeachers['t10'] && cachedTeachers['t10'].class === '11-A') {
+          cachedTeachers['t10'].class = '';
+          cachedTeachers['t10'].role = 'subject';
+        }
+        if (cachedTeachers['t12']) {
+          cachedTeachers['t12'].class = '';
+          cachedTeachers['t12'].role = 'subject';
+        }
+        Object.keys(cachedStudents).forEach(sid => {
+          const st = cachedStudents[sid];
+          if (st && st.class === '11-B') {
+            if (st.name && (st.name.includes('ЕШБАЕВ') || st.name.includes('ESHBA'))) {
+              delete cachedStudents[sid];
+            } else {
+              st.class = '11-A';
+            }
+          }
+        });
+        localStorage.setItem('school_cached_teachers', JSON.stringify(cachedTeachers));
+        localStorage.setItem('school_cached_students', JSON.stringify(cachedStudents));
+
 
       try {
 
