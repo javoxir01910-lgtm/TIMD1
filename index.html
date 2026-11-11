@@ -3760,7 +3760,29 @@
 
 
     function preloadLocalFallbacks() {
-        // Auto-migration: 11-B -> 11-A merge & Eshbayev removal
+      try {
+        const savedTeachers = localStorage.getItem('school_cached_teachers');
+        if (savedTeachers) {
+          try { cachedTeachers = JSON.parse(savedTeachers) || {}; } catch(e) {}
+        }
+        if (!cachedTeachers || Object.keys(cachedTeachers).length === 0) {
+          cachedTeachers = {};
+          INITIAL_TEACHERS.forEach(t => cachedTeachers[t.id] = t);
+        }
+
+        const savedStudents = localStorage.getItem('school_cached_students');
+        if (savedStudents) {
+          try { cachedStudents = JSON.parse(savedStudents) || {}; } catch(e) {}
+        }
+        if (!cachedStudents || Object.keys(cachedStudents).length === 0) {
+          cachedStudents = {};
+          INITIAL_RAW_STUDENTS.forEach((st, idx) => {
+            const sid = "s_" + (idx + 1);
+            cachedStudents[sid] = { id: sid, name: st.name, class: st.class };
+          });
+        }
+
+        // Auto-migration & cleanup: 11-B -> 11-A merge & Eshbayev removal
         if (cachedTeachers['t10'] && cachedTeachers['t10'].class === '11-A') {
           cachedTeachers['t10'].class = '';
           cachedTeachers['t10'].role = 'subject';
@@ -3771,64 +3793,31 @@
         }
         Object.keys(cachedStudents).forEach(sid => {
           const st = cachedStudents[sid];
-          if (st && st.class === '11-B') {
-            if (st.name && (st.name.includes('ЕШБАЕВ') || st.name.includes('ESHBA'))) {
+          if (!st) return;
+          if (st.class === '11-B') {
+            if (st.name && (st.name.toUpperCase().includes('ДИЛШОД') || st.name.toUpperCase().includes('ESHBA') || st.name.toUpperCase().includes('ЕШБА'))) {
               delete cachedStudents[sid];
             } else {
               st.class = '11-A';
             }
           }
+          if (st.name && (st.name.toUpperCase().includes('ДИЛШОД') && (st.name.toUpperCase().includes('ESHBA') || st.name.toUpperCase().includes('ЕШБА')))) {
+            delete cachedStudents[sid];
+          }
         });
+
         localStorage.setItem('school_cached_teachers', JSON.stringify(cachedTeachers));
         localStorage.setItem('school_cached_students', JSON.stringify(cachedStudents));
 
-
-      try {
-
-        const savedTeachers = localStorage.getItem('school_cached_teachers');
-
-        if (savedTeachers) cachedTeachers = JSON.parse(savedTeachers);
-
-        else INITIAL_TEACHERS.forEach(t => cachedTeachers[t.id] = t);
-
-
-
-        const savedStudents = localStorage.getItem('school_cached_students');
-
-        if (savedStudents) cachedStudents = JSON.parse(savedStudents);
-
-        else {
-
-          INITIAL_RAW_STUDENTS.forEach((st, idx) => {
-
-            const sid = "s_" + (idx + 1);
-
-            cachedStudents[sid] = { id: sid, name: st.name, class: st.class };
-
-          });
-
-        }
-
-
-
         const savedSchedules = localStorage.getItem('school_cached_schedules');
-
-        if (savedSchedules) cachedSchedules = JSON.parse(savedSchedules);
-
-
+        if (savedSchedules) try { cachedSchedules = JSON.parse(savedSchedules) || {}; } catch(e) {}
 
         const savedBells = localStorage.getItem('school_cached_bells');
-
-        if (savedBells) cachedBellTimes = JSON.parse(savedBells);
-
-
+        if (savedBells) try { cachedBellTimes = JSON.parse(savedBells) || {}; } catch(e) {}
 
         const savedSchoolLoc = localStorage.getItem('school_cached_location');
-
-        if (savedSchoolLoc) cachedSchoolLocation = JSON.parse(savedSchoolLoc);
-
+        if (savedSchoolLoc) try { cachedSchoolLocation = JSON.parse(savedSchoolLoc); } catch(e) {}
       } catch (e) {}
-
     }
 
     preloadLocalFallbacks();
@@ -4034,17 +4023,27 @@
 
 
       db.ref('students').on('value', snap => {
-
         if (snap.exists()) {
-
-          cachedStudents = snap.val();
-
+          const val = snap.val() || {};
+          // Ensure client-side merge safety for 11-B and Eshbayev
+          Object.keys(val).forEach(sid => {
+            const st = val[sid];
+            if (!st) return;
+            if (st.class === '11-B') {
+              if (st.name && (st.name.toUpperCase().includes('ДИЛШОД') || st.name.toUpperCase().includes('ESHBA') || st.name.toUpperCase().includes('ЕШБА'))) {
+                delete val[sid];
+              } else {
+                st.class = '11-A';
+              }
+            }
+            if (st.name && (st.name.toUpperCase().includes('ДИЛШОД') && (st.name.toUpperCase().includes('ESHBA') || st.name.toUpperCase().includes('ЕШБА')))) {
+              delete val[sid];
+            }
+          });
+          cachedStudents = val;
           localStorage.setItem('school_cached_students', JSON.stringify(cachedStudents));
-
           scheduleActiveViewRender();
-
         }
-
       });
 
 
@@ -6027,7 +6026,17 @@
 
       list = sortStudentsCanonical(list);
 
-
+      if (list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="13" class="p-8 text-center text-slate-400 font-bold text-xs sm:text-sm">
+              <i class="fa-solid fa-users-slash text-2xl mb-2 block text-slate-300"></i>
+              Ushbu sinfda o'quvchilar mavjud emas yoki yuklanmoqda...
+            </td>
+          </tr>
+        `;
+        return;
+      }
 
       const rowsHtml = list.map((st, idx) => {
 
