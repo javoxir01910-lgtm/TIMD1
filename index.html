@@ -5216,53 +5216,61 @@
 
 
     function isClockPastLessonStart(hourKey) {
-
       const slot = cachedBellTimes[String(hourKey)] || DEFAULT_BELL_TIMES[String(hourKey)];
-
       if (!slot || !slot.start) return true;
-
       const now = new Date();
-
       const curMins = now.getHours() * 60 + now.getMinutes();
-
       return curMins >= timeStrToMinutes(slot.start);
-
     }
 
-
-
-    function isLessonTimeStarted(hourKey) {
-
-      if (currentUser && (currentUser.role === 'creator' || currentUser.role === 'admin')) return true;
-
-      return isClockPastLessonStart(hourKey);
-
-    }
-
-
-
-    function detectCurrentLessonHourByClock() {
-
-      const now = new Date();
-
-      const curMins = now.getHours() * 60 + now.getMinutes();
-
-      for (let h = 1; h <= 8; h++) {
-
-        const slot = cachedBellTimes[String(h)] || DEFAULT_BELL_TIMES[String(h)];
-
-        if (!slot) continue;
-
-        if (curMins >= timeStrToMinutes(slot.start) && curMins <= timeStrToMinutes(slot.end)) {
-
-          return String(h);
-
-        }
-
+    function checkLessonTimeWindow(hourKey) {
+      if (currentUser && (currentUser.role === 'creator' || currentUser.role === 'admin')) {
+        return { allowed: true, status: 'open', message: 'Faol (Ruxsat berilgan)' };
       }
 
-      return null;
+      if (currentDayStr && todayDayStr && currentDayStr !== todayDayStr) {
+        if (currentDayStr < todayDayStr) {
+          return { allowed: false, status: 'ended', message: "O'tgan kun davomati yopilgan" };
+        } else {
+          return { allowed: false, status: 'not_started', message: "Kelajak kun davomati hali ochilmagan" };
+        }
+      }
 
+      const slot = cachedBellTimes[String(hourKey)] || DEFAULT_BELL_TIMES[String(hourKey)];
+      if (!slot || !slot.start) return { allowed: true, status: 'open', message: '' };
+
+      const now = new Date();
+      const curMins = now.getHours() * 60 + now.getMinutes();
+      const startMins = timeStrToMinutes(slot.start);
+      const endMins = slot.end ? timeStrToMinutes(slot.end) : (startMins + 45);
+      const lockMins = endMins + 5; // Dars tugagandan 5 daqiqa o'tgach qulflanadi
+
+      if (curMins < startMins) {
+        return { allowed: false, status: 'not_started', message: `Soat ${slot.start} da ochiladi`, slot };
+      }
+      if (curMins > lockMins) {
+        return { allowed: false, status: 'ended', message: `Dars tugaganiga 5 daqiqadan oshdi (Davomat yopilgan)`, slot };
+      }
+      return { allowed: true, status: 'open', message: `${slot.start} - ${slot.end}`, slot };
+    }
+
+    function isLessonTimeStarted(hourKey) {
+      return checkLessonTimeWindow(hourKey).allowed;
+    }
+
+    function detectCurrentLessonHourByClock() {
+      const now = new Date();
+      const curMins = now.getHours() * 60 + now.getMinutes();
+      for (let h = 1; h <= 8; h++) {
+        const slot = cachedBellTimes[String(h)] || DEFAULT_BELL_TIMES[String(h)];
+        if (!slot) continue;
+        const startM = timeStrToMinutes(slot.start);
+        const endM = slot.end ? timeStrToMinutes(slot.end) : (startM + 45);
+        if (curMins >= startM && curMins <= endM + 5) {
+          return String(h);
+        }
+      }
+      return null;
     }
 
 
@@ -6149,80 +6157,57 @@
 
 
 
-      const lessonStarted = isLessonTimeStarted(lessonHour);
-
+      const timeCheck = checkLessonTimeWindow(lessonHour);
       const slot = cachedBellTimes[String(lessonHour)] || DEFAULT_BELL_TIMES[String(lessonHour)];
-
       const startTimeStr = slot ? slot.start : '';
-
+      const endTimeStr = slot ? slot.end : '';
       const geoCheck = isTeacherAllowedToTakeAttendanceByGeo();
 
-
-
       if (timeBadge) {
-
-        if (!lessonStarted) {
-
+        if (timeCheck.status === 'not_started') {
           timeBadge.className = "px-2.5 py-0.5 badge-late rounded-lg text-[11px] font-bold";
-
           timeBadge.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>${lessonHour}-soat ${startTimeStr} da boshlanadi`;
-
           timeBadge.classList.remove('hidden');
-
+        } else if (timeCheck.status === 'ended') {
+          timeBadge.className = "px-2.5 py-0.5 bg-rose-100 text-rose-700 rounded-lg text-[11px] font-bold border border-rose-200";
+          timeBadge.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>${lessonHour}-soat tugagan (${endTimeStr}) - Yopilgan`;
+          timeBadge.classList.remove('hidden');
         } else if (slot) {
-
           timeBadge.className = "px-2.5 py-0.5 badge-present rounded-lg text-[11px] font-bold";
-
           timeBadge.innerText = `${lessonHour}-soat (${slot.start}-${slot.end})`;
-
           timeBadge.classList.remove('hidden');
-
         }
-
       }
 
-
-
       if (confirmBtn) {
-
         confirmBtn.classList.remove('hidden');
-
         const isDone = isClassHourSubmitted(selectedClass, lessonHour);
-
-        if (!lessonStarted) {
-
+        if (timeCheck.status === 'not_started') {
           confirmBtn.disabled = true;
-
           confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 bg-slate-200 text-slate-500 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed transition";
-
           confirmBtn.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Soat ${startTimeStr} da ochiladi</span>`;
-
-        } else if (!geoCheck.allowed) {
-
+        } else if (timeCheck.status === 'ended') {
           confirmBtn.disabled = true;
-
+          if (isDone) {
+            confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 badge-present rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-default transition opacity-80";
+            confirmBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Tasdiqlangan (${selectedClass}) - Yopilgan</span>`;
+          } else {
+            confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 bg-rose-100 text-rose-600 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed transition border border-rose-200";
+            confirmBtn.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Dars tugagan (Davomat yopildi)</span>`;
+          }
+        } else if (!geoCheck.allowed) {
+          confirmBtn.disabled = true;
           confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 bg-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed transition";
-
           confirmBtn.innerHTML = `<i class="fa-solid fa-location-slash"></i> <span>Maktab hududidan tashqarida</span>`;
-
         } else if (isDone) {
-
           confirmBtn.disabled = false;
-
           confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 badge-present rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition";
-
           confirmBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Tasdiqlangan (${selectedClass})</span>`;
-
         } else {
-
           confirmBtn.disabled = false;
-
           confirmBtn.className = "w-full sm:w-auto px-4 py-2.5 bg-emerald-700 active:bg-emerald-800 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition";
-
           confirmBtn.innerHTML = `<i class="fa-solid fa-check-double"></i> <span>Davomatni tasdiqlash</span>`;
-
         }
-
       }
 
 
@@ -6284,51 +6269,34 @@
 
 
         let actionsHtml = '';
-
         if (isLockedByLeader) {
-
           actionsHtml = `<span class="text-[11px] text-slate-400 font-semibold italic">${lockLabel}</span>`;
-
-        } else if (!lessonStarted) {
-
+        } else if (timeCheck.status === 'not_started') {
           actionsHtml = `
-
             <span class="px-2.5 py-1.5 bg-slate-100 text-slate-400 rounded-xl text-[11px] font-bold inline-flex items-center gap-1 cursor-not-allowed">
-
               <i class="fa-solid fa-lock text-[10px]"></i> ${startTimeStr} da ochiladi
-
             </span>
-
           `;
-
+        } else if (timeCheck.status === 'ended') {
+          actionsHtml = `
+            <span class="px-2.5 py-1.5 bg-rose-50 text-rose-500 rounded-xl text-[11px] font-bold inline-flex items-center gap-1 cursor-not-allowed border border-rose-100">
+              <i class="fa-solid fa-lock text-[10px]"></i> Vaqt yopilgan
+            </span>
+          `;
         } else if (!geoCheck.allowed) {
-
           actionsHtml = `
-
             <span class="px-2.5 py-1.5 bg-rose-100 text-rose-700 rounded-xl text-[11px] font-bold inline-flex items-center gap-1">
-
               <i class="fa-solid fa-location-slash text-[10px]"></i> Bloklangan
-
             </span>
-
           `;
-
         } else {
-
           actionsHtml = `
-
             <div class="inline-flex gap-1.5 sm:gap-2">
-
               <button onclick="setAttendanceStatus('${st.id}', '${lessonHour}', 'absent')" class="px-2.5 py-2 sm:px-3 sm:py-1.5 badge-absent rounded-xl text-xs font-bold transition">Yo'q</button>
-
               <button onclick="setAttendanceStatus('${st.id}', '${lessonHour}', 'late')" class="px-2.5 py-2 sm:px-3 sm:py-1.5 badge-late rounded-xl text-xs font-bold transition">Kech</button>
-
               <button onclick="setAttendanceStatus('${st.id}', '${lessonHour}', 'present')" class="px-2.5 py-2 sm:px-3 sm:py-1.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition">Bor</button>
-
             </div>
-
           `;
-
         }
 
 
@@ -6369,12 +6337,15 @@
 
       }
 
-      if (!isLessonTimeStarted(lessonKey)) {
-
-        const slot = cachedBellTimes[String(lessonKey)] || DEFAULT_BELL_TIMES[String(lessonKey)];
-
-        return alert(`Diqqat! ${lessonKey}-soat darsi hali boshlanmagan (${slot ? slot.start : ''}).`);
-
+      const timeCheck = checkLessonTimeWindow(lessonKey);
+      if (!timeCheck.allowed) {
+        if (timeCheck.status === 'not_started') {
+          const slot = timeCheck.slot || cachedBellTimes[String(lessonKey)] || DEFAULT_BELL_TIMES[String(lessonKey)];
+          return alert(`Diqqat! ${lessonKey}-soat darsi hali boshlanmagan (Boshlanish vaqti: ${slot ? slot.start : ''}).`);
+        } else if (timeCheck.status === 'ended') {
+          return alert(`Diqqat! ${lessonKey}-soat darsi tugaganiga 5 daqiqadan oshdi. Ushbu dars uchun davomat qilish vaqti yopilgan!`);
+        }
+        return alert("Ushbu dars uchun davomat qilish vaqti yopilgan!");
       }
 
 
@@ -6423,12 +6394,15 @@
 
       }
 
-      if (!isLessonTimeStarted(lessonHour)) {
-
-        const slot = cachedBellTimes[String(lessonHour)] || DEFAULT_BELL_TIMES[String(lessonHour)];
-
-        return alert(`Diqqat! ${lessonHour}-soat darsi hali boshlanmagan (${slot ? slot.start : ''}).`);
-
+      const timeCheck = checkLessonTimeWindow(lessonHour);
+      if (!timeCheck.allowed) {
+        if (timeCheck.status === 'not_started') {
+          const slot = timeCheck.slot || cachedBellTimes[String(lessonHour)] || DEFAULT_BELL_TIMES[String(lessonHour)];
+          return alert(`Diqqat! ${lessonHour}-soat darsi hali boshlanmagan (Boshlanish vaqti: ${slot ? slot.start : ''}).`);
+        } else if (timeCheck.status === 'ended') {
+          return alert(`Diqqat! ${lessonHour}-soat darsi tugaganiga 5 daqiqadan oshdi. Davomatni tasdiqlash vaqti yopilgan!`);
+        }
+        return alert("Ushbu dars uchun davomat qilish vaqti yopilgan!");
       }
 
 
