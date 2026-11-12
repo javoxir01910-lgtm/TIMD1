@@ -3769,6 +3769,29 @@
 
 
 
+    function sanitizeScheduleTeacherMap(teacherMap) {
+      if (!teacherMap || typeof teacherMap !== 'object') return {};
+      Object.keys(teacherMap).forEach(login => {
+        const days = teacherMap[login];
+        if (!days || typeof days !== 'object') return;
+        Object.keys(days).forEach(d => {
+          const hours = days[d];
+          if (!hours || typeof hours !== 'object') return;
+          Object.keys(hours).forEach(h => {
+            const val = hours[h];
+            if (!val) return;
+            const kept = String(val)
+              .split(',')
+              .map(c => c.trim())
+              .filter(c => c && !/^(11-B|11B|11-Б|11Б)$/i.test(c));
+            if (kept.length > 0) hours[h] = kept.join(', ');
+            else delete hours[h];
+          });
+        });
+      });
+      return teacherMap;
+    }
+
     function preloadLocalFallbacks() {
       try {
         const savedTeachers = localStorage.getItem('school_cached_teachers');
@@ -3820,7 +3843,7 @@
         localStorage.setItem('school_cached_students', JSON.stringify(cachedStudents));
 
         const savedSchedules = localStorage.getItem('school_cached_schedules');
-        if (savedSchedules) try { cachedSchedules = JSON.parse(savedSchedules) || {}; } catch(e) {}
+        if (savedSchedules) try { cachedSchedules = sanitizeScheduleTeacherMap(JSON.parse(savedSchedules) || {}); localStorage.setItem('school_cached_schedules', JSON.stringify(cachedSchedules)); } catch(e) {}
 
         const savedBells = localStorage.getItem('school_cached_bells');
         if (savedBells) try { cachedBellTimes = JSON.parse(savedBells) || {}; } catch(e) {}
@@ -4093,7 +4116,7 @@
 
           const val = snap.val();
 
-          cachedSchedules = val.teacherMap || {};
+          cachedSchedules = sanitizeScheduleTeacherMap(val.teacherMap || {});
 
           localStorage.setItem('school_cached_schedules', JSON.stringify(cachedSchedules));
 
@@ -7275,7 +7298,7 @@
 
             ORDERED_CLASSES.map(c => `<option value="${c}" ${curCls === c ? 'selected' : ''}>${c}</option>`).join('');
 
-          if (curCls && !ORDERED_CLASSES.includes(curCls)) {
+          if (curCls && !ORDERED_CLASSES.includes(curCls) && !/^(11-B|11B)$/i.test(curCls)) {
 
             optionsHtml += `<option value="${curCls}" selected>${curCls}</option>`;
 
